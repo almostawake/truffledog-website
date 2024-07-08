@@ -1,0 +1,106 @@
+# Simple prompt
+export PS1='%~ %# '
+
+# Brew-installed software
+export PATH="/usr/local/bin:$PATH"  # For Intel Macs with Homebrew
+export PATH="/opt/homebrew/bin:$PATH"  # For Apple Silicon Macs with Homebrew
+
+# Custom binaries in ~/bin
+export PATH="$PATH:~/bin"
+
+# IntelliJ
+export PATH="$PATH:/Applications/IntelliJ IDEA.app/Contents/MacOS"
+
+# Node.js
+export PATH="$HOME/Library/Python/3.x/bin:$PATH"
+
+# jre/jdk
+export JAVA_HOME=/opt/homebrew/opt/openjdk
+export PATH="$JAVA_HOME/bin:$PATH"
+
+# Xcode Command Line Tools
+export PATH="/Library/Developer/CommandLineTools/usr/bin:$PATH"
+
+# Node Version Manager
+export NVM_DIR="$HOME/.nvm"
+  [ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
+  [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+
+alias ll="ls -al"
+alias cz="cat ~/.zshrc"
+alias p="code ~/crm/commandline"
+alias s="code ~/spent"
+alias crm="code ~/crm"
+
+
+# Function to forward ports to codespace
+pf() {
+  CODESPACE_NAME="crispy-telegram-r4gq4qvx5cg6x"
+  
+  # Fetch currently mapped ports
+  ports=$(gh cs ports --codespace "$CODESPACE_NAME" | awk '{print $1}' | grep -E '^[0-9]+$')
+  
+  # Convert ports string to array
+  ports_array=(${(f)ports})
+  
+  echo "Ports to be forwarded: ${ports_array[@]}"
+  
+  # Stop any currently forwarded ports
+  echo "Stopping currently forwarded ports"
+  pkill -f "gh cs ports forward"
+  
+  sleep 2  # Small delay to ensure processes are killed
+  
+  # Check if any of those ports are still active locally
+  echo "Checking for active local ports:"
+  for port in "${ports_array[@]}"; do
+    if lsof -i :$port > /dev/null; then
+      echo "Port $port is still active locally"
+    fi
+  done
+  
+  # Forward ports
+  for port in "${ports_array[@]}"; do
+    echo "Forwarding port $port"
+    nohup gh cs ports forward "$port:$port" -c "$CODESPACE_NAME" > /dev/null 2>&1 &
+    pid=$!
+    sleep 1  # Add a small delay to ensure the command is processed correctly
+    if ! kill -0 $pid > /dev/null 2>&1; then
+      echo "Failed to forward port $port"
+    else
+      echo "Successfully forwarded port $port"
+    fi
+  done
+}
+
+# Function to list port forwarding processes
+pfl() {
+  echo "Listing port forwarding processes:"
+  ps aux | grep "gh cs ports forward" | grep -v grep
+}
+
+# Function to stop port forwarding processes
+pfx() {
+  echo "Stopping currently forwarded ports"
+  pkill -f "gh cs ports forward"
+}
+
+# Function to dump a bunch of code files into a single code.log file
+gen() {
+  # Remove the existing code.log if it exists
+  rm -f code.log
+
+  # Use eval to expand wildcards and iterate over each file
+  eval "files=($@)"
+  for file in "${files[@]}"; do
+    # Check if the file exists
+    if [ -f "$file" ]; then
+      # Append the header with filename and blank lines to code.log
+      echo -e "\n\n===== $file =====\n\n" >> code.log
+      # Append the content of the file to code.log
+      cat "$file" >> code.log
+    else
+      echo "File $file does not exist." >> code.log
+    fi
+  done
+}
