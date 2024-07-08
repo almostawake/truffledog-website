@@ -1,10 +1,6 @@
 # Simple prompt
 export PS1='%~ %# '
 
-# Brew-installed software
-export PATH="/usr/local/bin:$PATH"  # For Intel Macs with Homebrew
-export PATH="/opt/homebrew/bin:$PATH"  # For Apple Silicon Macs with Homebrew
-
 # Custom binaries in ~/bin
 export PATH="$PATH:~/bin"
 
@@ -12,7 +8,7 @@ export PATH="$PATH:~/bin"
 export PATH="$PATH:/Applications/IntelliJ IDEA.app/Contents/MacOS"
 
 # Node.js
-export PATH="$HOME/Library/Python/3.x/bin:$PATH"
+export PATH="/usr/local/bin:$PATH"
 
 # jre/jdk
 export JAVA_HOME=/opt/homebrew/opt/openjdk
@@ -27,8 +23,7 @@ export NVM_DIR="$HOME/.nvm"
   [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
 
 alias ll="ls -al"
-alias cz="cat ~/.zshrc"
-alias p="code ~/crm/commandline"
+alias c="code ~/crm/commandline"
 alias s="code ~/spent"
 alias crm="code ~/crm"
 
