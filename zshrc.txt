@@ -26,7 +26,7 @@ alias ll="ls -al"
 alias c="code ~/crm/commandline"
 alias s="code ~/spent"
 alias crm="code ~/crm"
-
+alias z='cd ~/truffledog-website && git pull && code .'
 
 # Function to forward ports to codespace
 pf() {
@@ -98,4 +98,106 @@ gen() {
       echo "File $file does not exist." >> code.log
     fi
   done
+}
+
+function tree() {
+  local ignore_file=".gitignore"
+  local additional_exclude_patterns=(
+    ".git"
+    ".devcontainer"
+    "package-lock.json"
+    "package.json"
+    ".eslintrc.cjs"
+    ".gitignore"
+    "*.example"
+    "LICENSE*"
+    "README*"
+    "tree.txt"
+  )
+  local ignore_patterns=()
+
+  # Load ignore patterns from .gitignore if it exists
+  if [[ -f "$ignore_file" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      ignore_patterns+=("$line")
+    done < "$ignore_file"
+  fi
+
+  function matches_exclude_pattern() {
+    local file="$1"
+    local is_dir="$2"
+
+    for pattern in "${additional_exclude_patterns[@]}"; do
+      if [[ "$file" == $pattern ]]; then
+        return 0
+      fi
+      # Handle patterns with wildcards
+      if [[ "$pattern" == *\** ]]; then
+        local regex="^${pattern//\*/.*}$"
+        if [[ "$file" =~ $regex ]]; then
+          return 0
+        fi
+      fi
+    done
+
+    for pattern in "${ignore_patterns[@]}"; do
+      # Ignore comments and empty lines in .gitignore
+      if [[ "$pattern" =~ ^#.* ]] || [[ -z "$pattern" ]]; then
+        continue
+      fi
+
+      if [[ "$is_dir" == 1 && "$pattern" == */ ]]; then
+        # Handle directory patterns
+        local dir_pattern="${pattern%/}"
+        if [[ "$file" == "$dir_pattern" ]]; then
+          return 0
+        fi
+      elif [[ "$file" == $pattern ]]; then
+        return 0
+      fi
+
+      # Handle patterns with wildcards
+      if [[ "$pattern" == *\** ]]; then
+        local regex="^${pattern//\*/.*}$"
+        if [[ "$file" =~ $regex ]]; then
+          return 0
+        fi
+      fi
+    done
+
+    return 1
+  }
+  
+  # Produce a text version of the current directory structure 
+  # honouring .gitignore from current directory
+  # plus additional hardcoded exclude patterns
+  function read_dir() {
+    local dir="$1"
+    local prefix="$2"
+    local entries=("${(@f)$(ls -A "$dir")}")
+
+    for entry in "${entries[@]}"; do
+      local full_path="$dir/$entry"
+      local is_dir=0
+
+      if [[ -d "$full_path" ]]; then
+        is_dir=1
+      fi
+
+      # Skip ignored paths and explicitly excluded files
+      matches_exclude_pattern "$entry" "$is_dir"
+      if [[ $? -eq 0 ]]; then
+        continue
+      fi
+
+      if [[ "$is_dir" -eq 1 ]]; then
+        echo "${prefix}${entry}/"
+        read_dir "$full_path" "$prefix  "
+      else
+        echo "${prefix}${entry}"
+      fi
+    done
+  }
+
+  read_dir "." "" > tree.txt
 }
