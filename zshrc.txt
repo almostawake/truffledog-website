@@ -167,7 +167,7 @@ function tree() {
 
     return 1
   }
-  
+
   # Produce a text version of the current directory structure 
   # honouring .gitignore from current directory
   # plus additional hardcoded exclude patterns
