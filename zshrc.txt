@@ -24,6 +24,7 @@ export NVM_DIR="$HOME/.nvm"
 
 alias ll="ls -al"
 alias c="code ~/crm/commandline"
+alias x="code ~/crm/extension"
 alias s="code ~/spent"
 alias crm="code ~/crm"
 alias z='cd ~/truffledog-website && git pull && code .'
