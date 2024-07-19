@@ -104,10 +104,10 @@ gen() {
 }
 
 function tree() {
-  local ignore_file=".gitignore"
-  local additional_exclude_patterns=(
-    ".git"
-    ".devcontainer"
+  local exclude_patterns=(
+    ".git/"
+    ".devcontainer/"
+    "node_modules/"
     "package-lock.json"
     "package.json"
     ".eslintrc.cjs"
@@ -117,48 +117,17 @@ function tree() {
     "README*"
     "tree.txt"
   )
-  local ignore_patterns=()
-
-  # Load ignore patterns from .gitignore if it exists
-  if [[ -f "$ignore_file" ]]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-      ignore_patterns+=("$line")
-    done < "$ignore_file"
-  fi
 
   function matches_exclude_pattern() {
     local file="$1"
     local is_dir="$2"
 
-    for pattern in "${additional_exclude_patterns[@]}"; do
-      if [[ "$file" == $pattern ]]; then
+    for pattern in "${exclude_patterns[@]}"; do
+      if [[ "$is_dir" -eq 1 && "$pattern" == */ && "$file" == "${pattern%/}" ]]; then
         return 0
-      fi
-      # Handle patterns with wildcards
-      if [[ "$pattern" == *\** ]]; then
-        local regex="^${pattern//\*/.*}$"
-        if [[ "$file" =~ $regex ]]; then
-          return 0
-        fi
-      fi
-    done
-
-    for pattern in "${ignore_patterns[@]}"; do
-      # Ignore comments and empty lines in .gitignore
-      if [[ "$pattern" =~ ^#.* ]] || [[ -z "$pattern" ]]; then
-        continue
-      fi
-
-      if [[ "$is_dir" == 1 && "$pattern" == */ ]]; then
-        # Handle directory patterns
-        local dir_pattern="${pattern%/}"
-        if [[ "$file" == "$dir_pattern" ]]; then
-          return 0
-        fi
       elif [[ "$file" == $pattern ]]; then
         return 0
       fi
-
       # Handle patterns with wildcards
       if [[ "$pattern" == *\** ]]; then
         local regex="^${pattern//\*/.*}$"
@@ -171,13 +140,11 @@ function tree() {
     return 1
   }
 
-  # Produce a text version of the current directory structure 
-  # honouring .gitignore from current directory
-  # plus additional hardcoded exclude patterns
   function read_dir() {
     local dir="$1"
     local prefix="$2"
-    local entries=("${(@f)$(ls -A "$dir")}")
+    local entries
+    entries=($(ls -A "$dir"))
 
     for entry in "${entries[@]}"; do
       local full_path="$dir/$entry"
@@ -187,7 +154,6 @@ function tree() {
         is_dir=1
       fi
 
-      # Skip ignored paths and explicitly excluded files
       matches_exclude_pattern "$entry" "$is_dir"
       if [[ $? -eq 0 ]]; then
         continue
