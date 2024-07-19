@@ -1,3 +1,5 @@
+#!/bin/zsh
+
 # Simple prompt
 export PS1='%~ %# '
 
