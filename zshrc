@@ -94,7 +94,7 @@ gen() {
     # Check if the file exists
     if [ -f "$file" ]; then
       # Append the header with filename and blank lines to code.log
-      echo -e "\n\n===== $file =====\n\n" >> code.log
+      echo -e "\n\n==== FILE CONTENTS FOR: $file ====\n\n" >> code.log
       # Append the content of the file to code.log
       cat "$file" >> code.log
     else
