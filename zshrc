@@ -108,6 +108,7 @@ function tree() {
     ".git/"
     ".devcontainer/"
     "node_modules/"
+    ".firebase/"
     "package-lock.json"
     "package.json"
     ".eslintrc.cjs"
@@ -115,7 +116,11 @@ function tree() {
     "*.example"
     "LICENSE*"
     "README*"
-    "tree.txt"
+    "*.txt"
+    "*.log"
+    "*.jsonl"
+    "*.example"
+    ".DS_Store"
   )
 
   function matches_exclude_pattern() {
