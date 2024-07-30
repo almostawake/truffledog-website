@@ -109,6 +109,7 @@ function tree() {
     ".devcontainer/"
     "node_modules/"
     ".firebase/"
+    "dist/"
     "package-lock.json"
     "package.json"
     ".eslintrc.cjs"
