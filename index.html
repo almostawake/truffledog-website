@@ -1,308 +1,700 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-  <link rel="manifest" href="/site.webmanifest">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">	
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            tan: '#BD8636',
-            leather: '#9D5E26',
-            brown: '#51332E',
-            chocolate: '#332315',
-            darkchocolate: '#1C0E11',
-            ash: '#EBEBEB',
-            white: '#ffffff'
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              tan: "#BD8636",
+              leather: "#9D5E26",
+              brown: "#51332E",
+              chocolate: "#332315",
+              darkchocolate: "#1C0E11",
+              ash: "#EBEBEB",
+              white: "#ffffff",
+            },
+            fontFamily: {
+              dmSerif: ["DM Serif Display", "sans-serif"],
+            },
           },
-          fontFamily: {
-          dmSerif: ['DM Serif Display', 'sans-serif']
-      	  }
-        }
-
+        },
+      };
+    </script>
+    <script>
+      /*Open Navigation*/
+      function openNav() {
+        document.getElementById("mobile-nav").style.display = "inherit";
       }
-    }
-   </script>
-   <script>
-   	/*Open Navigation*/
-    function openNav() {
-	  document.getElementById("mobile-nav").style.display = "inherit";
-	}
 
-	/*Close navigation*/
-	function exitNav() {
-	  document.getElementById("mobile-nav").style.display = "none";
-	}
-  </script>
-  
+      /*Close navigation*/
+      function exitNav() {
+        document.getElementById("mobile-nav").style.display = "none";
+      }
+    </script>
+  </head>
+  <body>
+    <div class="scroll-smooth">
+      <div class="bg-white">
+        <header class="absolute inset-x-0 top-0 z-50">
+          <nav
+            class="flex items-center justify-between p-6 lg:px-8"
+            aria-label="Global"
+          >
+            <div class="flex lg:flex-1">
+              <a href="#" class="-m-1.5 p-1.5">
+                <span class="sr-only">Truffle Dog Digital</span>
+                <img
+                  class="h-20 w-auto"
+                  src="images/truffle-dog-digital-logo.svg"
+                  alt=""
+                />
+              </a>
+            </div>
+            <div class="flex lg:hidden">
+              <button
+                type="button"
+                onclick="openNav()"
+                class="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700"
+              >
+                <span class="sr-only">Open menu</span>
+                <svg
+                  class="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div class="hidden lg:flex lg:gap-x-12">
+              <a
+                href="#problems"
+                class="font-dmSerif leading-6 text-tan hover:text-brown"
+                >The Problem</a
+              >
+              <a
+                href="#solutions"
+                class="font-dmSerif leading-6 text-tan hover:text-brown"
+                >Our Solutions</a
+              >
+              <a
+                href="#results"
+                class="font-dmSerif leading-6 text-tan hover:text-brown"
+                >The Results</a
+              >
+              <a
+                href="#contact"
+                class="font-dmSerif leading-6 text-tan hover:text-brown"
+                >Get Started</a
+              >
+            </div>
+          </nav>
+          <!-- Mobile menu, show/hide based on menu open state. -->
+          <div
+            id="mobile-nav"
+            class="hidden lg:hidden"
+            role="dialog"
+            aria-modal="true"
+          >
+            <!-- Background backdrop, show/hide based on slide-over state. -->
+            <div class="fixed inset-0 z-50"></div>
+            <div
+              class="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10"
+            >
+              <div class="flex items-center justify-between">
+                <a href="#" class="-m-1.5 p-1.5">
+                  <span class="sr-only">Truffle Dog Digital</span>
+                  <img
+                    class="h-12 w-auto"
+                    src="images/truffle-dog-digital-logo.svg"
+                    alt=""
+                  />
+                </a>
+                <button
+                  id="close-mobile-nav"
+                  onclick="exitNav()"
+                  type="button"
+                  class="-m-2.5 rounded-md p-2.5 text-brown hover:text-tan"
+                >
+                  <span class="sr-only">Close menu</span>
+                  <svg
+                    class="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div class="mt-6 flow-root">
+                <div class="-my-6 divide-y divide-gray-500/10">
+                  <div class="space-y-2 py-6">
+                    <a
+                      href="#problems"
+                      class="-mx-3 block rounded-lg px-3 py-2 font-dmSerif text-base font-semibold leading-7 text-tan hover:text-brown hover:bg-ash"
+                      >The Problem</a
+                    >
+                    <a
+                      href="#solutions"
+                      class="-mx-3 block rounded-lg px-3 py-2 font-dmSerif text-base font-semibold leading-7 text-tan hover:text-brown hover:bg-ash"
+                      >Our Solutions</a
+                    >
+                    <a
+                      href="#results"
+                      class="-mx-3 block rounded-lg px-3 py-2 font-dmSerif text-base font-semibold leading-7 text-tan hover:text-brown hover:bg-ash"
+                      >The Results</a
+                    >
+                    <a
+                      href="#contact"
+                      class="-mx-3 block rounded-lg px-3 py-2 font-dmSerif text-base font-semibold leading-7 text-tan hover:text-brown hover:bg-ash"
+                      >Get Started</a
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
 
-</head>
-<body>
-<div class="scroll-smooth">
-<div class="bg-white">
-  <header class="absolute inset-x-0 top-0 z-50">
-    <nav class="flex items-center justify-between p-6 lg:px-8" aria-label="Global">
-      <div class="flex lg:flex-1">
-        <a href="#" class="-m-1.5 p-1.5">
-          <span class="sr-only">Truffle Dog Digital</span>
-          <img class="h-20 w-auto" src="images/truffle-dog-digital-logo.svg" alt="">
-        </a>
-      </div>
-      <div class="flex lg:hidden">
-        <button type="button" onclick="openNav()" class="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700">
-          <span class="sr-only">Open menu</span>
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-          </svg>
-        </button>
-      </div>
-      <div class="hidden lg:flex lg:gap-x-12">
-        <a href="#problems" class="font-dmSerif leading-6 text-tan hover:text-brown">The Problem</a>
-        <a href="#solutions" class="font-dmSerif leading-6 text-tan hover:text-brown">Our Solutions</a>
-        <a href="#results" class="font-dmSerif leading-6 text-tan hover:text-brown">The Results</a>
-        <a href="#contact" class="font-dmSerif leading-6 text-tan hover:text-brown">Get Started</a>
-      </div>
-    </nav>
-    <!-- Mobile menu, show/hide based on menu open state. -->
-    <div id="mobile-nav" class="hidden lg:hidden" role="dialog" aria-modal="true">
-      <!-- Background backdrop, show/hide based on slide-over state. -->
-      <div class="fixed inset-0 z-50"></div>
-      <div class="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
-        <div class="flex items-center justify-between">
-          <a href="#" class="-m-1.5 p-1.5">
-            <span class="sr-only">Truffle Dog Digital</span>
-            <img class="h-12 w-auto" src="images/truffle-dog-digital-logo.svg" alt="">
-          </a>
-          <button id="close-mobile-nav" onclick="exitNav()" type="button" class="-m-2.5 rounded-md p-2.5 text-brown hover:text-tan">
-            <span class="sr-only">Close menu</span>
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <div class="relative isolate px-6 pt-14 lg:px-8">
+          <div class="mx-auto max-w-2xl py-32 sm:py-48 lg:py-56">
+            <div>
+              <h1
+                class="text-5xl font-dmSerif tracking-tight text-brown sm:text-6xl"
+              >
+                Digital solutions<br /><span class="text-tan"
+                  >in the nonprofit sector.<br
+                /></span>
+                We build, automate & run,<br />
+                <span class="text-tan"> you deliver more impact.</span>
+              </h1>
+              <div class="mt-10 flex items-center gap-x-6">
+                <a
+                  href="#contact"
+                  class="rounded-md bg-tan px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-chocolate focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-chocolate"
+                  >Chat with us</a
+                >
+                <a
+                  href="#problems"
+                  class="text-sm font-semibold leading-6 text-brown hover:text-tan"
+                  >Learn more <span aria-hidden="true">→</span></a
+                >
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="mt-6 flow-root">
-          <div class="-my-6 divide-y divide-gray-500/10">
-            <div class="space-y-2 py-6">
-              <a href="#problems" class="-mx-3 block rounded-lg px-3 py-2 font-dmSerif text-base font-semibold leading-7 text-tan hover:text-brown hover:bg-ash">The Problem</a>
-              <a href="#solutions" class="-mx-3 block rounded-lg px-3 py-2 font-dmSerif text-base font-semibold leading-7 text-tan hover:text-brown hover:bg-ash">Our Solutions</a>
-              <a href="#results" class="-mx-3 block rounded-lg px-3 py-2 font-dmSerif text-base font-semibold leading-7 text-tan hover:text-brown hover:bg-ash">The Results</a>
-              <a href="#contact" class="-mx-3 block rounded-lg px-3 py-2 font-dmSerif text-base font-semibold leading-7 text-tan hover:text-brown hover:bg-ash">Get Started</a>
+
+        <div class="bg-chocolate text-center relative isolate">
+          <div class="mx-auto max-w-7xl text-center">
+            <h2
+              class="text-7xl font-dmSerif tracking-tight text-white py-32 sm:py-48 lg:py-56"
+            >
+              Solutions with purpose
+            </h2>
+            <img class="w-svw" src="images/footer-rectangle.svg" alt="" />
+          </div>
+        </div>
+      </div>
+
+      <div
+        id="problems"
+        class="scroll-smooth relative isolate overflow-hidden pb-10"
+      >
+        <div class="mx-auto max-w-6xl px-6 lg:px-8">
+          <div
+            class="mx-auto grid max-w-2xl grid-cols-1 gap-x-24 gap-y-16 lg:max-w-none lg:grid-cols-2"
+          >
+            <div class="max-w-xl lg:max-w-lg">
+              <h2 class="text-6xl font-dmSerif tracking-tight text-brown pb-10">
+                The Problems
+              </h2>
+              <ul
+                class="text-brown list-disc list-outside pl-5 space-y-5 text-lg"
+              >
+                <li>
+                  You likely have an agenda to broaden your reach and deepen
+                  your impact - but your systems are holding you back.
+                </li>
+                <li>
+                  Your staff and participants are as frustrated with
+                  administration and back office systems as they were 5 years
+                  ago.
+                </li>
+                <li>
+                  You want the digital results but you don't want to inherit a
+                  maintenance nightmare.
+                </li>
+                <li>
+                  You've tried to buy expensive software to fix the problem, but
+                  that's made it worse, not better.
+                </li>
+                <li>
+                  A consultancy has proposed spending millions on the vague
+                  promise of future returns, but it was too risky.
+                </li>
+              </ul>
+              <p class="text-2xl font-dmSerif text-brown py-10">
+                So where to turn?
+              </p>
+              <a
+                href="#contact"
+                class="rounded-md bg-tan px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-chocolate focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-chocolate"
+                >Chat with us</a
+              >
+            </div>
+            <dl
+              class="grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:pt-2"
+            >
+              <div class="flex flex-col items-start">
+                <div class="rounded-md bg-white/5 p-2 ring-1 ring-white/10">
+                  <svg
+                    class="h-24 w-24 text-tan"
+                    viewBox="0 0 128 128"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M103.112 25.3568C124.713 46.9577 124.713 81.9796 103.112 103.58C81.5112 125.181 46.4893 125.181 24.8884 103.58C3.28752 81.9796 3.28752 46.9577 24.8884 25.3568C46.4893 3.75591 81.5112 3.75591 103.112 25.3568Z"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M93.7361 93.9686C85.5957 77.5405 65.679 70.8219 49.2509 78.9621C42.7415 82.1876 37.4699 87.4593 34.2444 93.9686"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M37.5372 50.0344L56.4821 49.8422"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                    <path
+                      d="M39.7219 58.6599L56.4767 49.8162"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                    <path
+                      d="M39.1604 42.1298L56.4766 49.8163"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                    <path
+                      d="M90.1042 50.0341L71.1594 49.8419"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                    <path
+                      d="M87.9196 58.6596L71.1647 49.8159"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                    <path
+                      d="M88.4811 42.1295L71.1649 49.816"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </div>
+                <dt class="mt-4 text-3xl font-dmSerif text-brown">
+                  Frustrated humans
+                </dt>
+              </div>
+              <div class="flex flex-col items-start">
+                <div class="rounded-md bg-white/5 p-2 ring-1 ring-white/10">
+                  <svg
+                    class="h-24 w-24 text-tan"
+                    viewBox="0 0 128 129"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M106.667 93.7699C106.667 102.606 99.5031 109.77 90.6666 109.77H37.3333C28.4967 109.77 21.3333 102.606 21.3333 93.7699V51.1033"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M21.3333 35.1033C21.3333 26.2667 28.4967 19.1033 37.3333 19.1033H90.6666C99.5031 19.1033 106.667 26.2667 106.667 35.1033V77.7699"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M5.35461 61.7699L21.3546 51.1033L37.3546 61.7699"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M90.688 67.1033L106.688 77.7699L122.688 67.1033"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M64 35.0819V72.3619"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M63.9998 84.3353C64.7362 84.3353 65.3332 84.9322 65.3332 85.6686C65.3332 86.405 64.7362 87.0019 63.9998 87.0019C63.2635 87.0019 62.6665 86.405 62.6665 85.6686C62.6665 84.9322 63.2635 84.3353 63.9998 84.3353Z"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </div>
+                <dt class="mt-4 text-3xl font-dmSerif text-brown">
+                  Poor <br />
+                  experience
+                </dt>
+              </div>
+              <div class="flex flex-col items-start">
+                <div class="rounded-md bg-white/5 p-2 ring-1 ring-white/10">
+                  <svg
+                    class="h-24 w-24 text-tan"
+                    viewBox="0 0 128 129"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M6.66663 98.1473L45.792 54.1473C47.7794 51.9532 51.1379 51.7023 53.4293 53.5766L77.2373 73.4166C79.5276 75.2912 82.8873 75.0327 84.864 72.8299L121.333 31.4806"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <g clip-path="url(#clip0_3_10489)">
+                      <path
+                        d="M50.0834 77.1186H51.9167V78.9519H50.0834V77.1186ZM50.0834 69.7852H51.9167V75.2852H50.0834V69.7852ZM50.9909 65.2019C45.9309 65.2019 41.8334 69.3086 41.8334 74.3686C41.8334 79.4286 45.9309 83.5352 50.9909 83.5352C56.06 83.5352 60.1667 79.4286 60.1667 74.3686C60.1667 69.3086 56.06 65.2019 50.9909 65.2019ZM51 81.7019C46.9484 81.7019 43.6667 78.4202 43.6667 74.3686C43.6667 70.3169 46.9484 67.0352 51 67.0352C55.0517 67.0352 58.3334 70.3169 58.3334 74.3686C58.3334 78.4202 55.0517 81.7019 51 81.7019Z"
+                        fill="#C7913A"
+                      />
+                    </g>
+                    <g clip-path="url(#clip1_3_10489)">
+                      <path
+                        d="M80.0834 55.1186H81.9167V56.9519H80.0834V55.1186ZM80.0834 47.7852H81.9167V53.2852H80.0834V47.7852ZM80.9909 43.2019C75.9309 43.2019 71.8334 47.3086 71.8334 52.3686C71.8334 57.4286 75.9309 61.5352 80.9909 61.5352C86.06 61.5352 90.1667 57.4286 90.1667 52.3686C90.1667 47.3086 86.06 43.2019 80.9909 43.2019ZM81 59.7019C76.9484 59.7019 73.6667 56.4202 73.6667 52.3686C73.6667 48.3169 76.9484 45.0352 81 45.0352C85.0517 45.0352 88.3334 48.3169 88.3334 52.3686C88.3334 56.4202 85.0517 59.7019 81 59.7019Z"
+                        fill="#C7913A"
+                      />
+                    </g>
+                    <path
+                      d="M84.3306 31.4806H121.333V63.3686"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <defs>
+                      <clipPath id="clip0_3_10489">
+                        <rect
+                          width="22"
+                          height="22"
+                          fill="white"
+                          transform="translate(40 63.3685)"
+                        />
+                      </clipPath>
+                      <clipPath id="clip1_3_10489">
+                        <rect
+                          width="22"
+                          height="22"
+                          fill="white"
+                          transform="translate(70 41.3685)"
+                        />
+                      </clipPath>
+                    </defs>
+                  </svg>
+                </div>
+                <dt class="mt-4 text-3xl font-dmSerif text-brown">
+                  Difficult <br />
+                  to grow
+                </dt>
+              </div>
+              <div class="flex flex-col items-start">
+                <div class="rounded-md bg-white/5 p-2 ring-1 ring-white/10">
+                  <svg
+                    class="h-24 w-24 text-tan"
+                    viewBox="0 0 129 129"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M95.3386 34.2257C95.3386 51.1191 81.6438 64.8139 64.7503 64.8139C47.8569 64.8139 34.1621 51.1191 34.1621 34.2257V10.6963H95.3386V34.2257Z"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M95.3386 95.4022C95.3386 78.5088 81.6438 64.814 64.7503 64.814C47.8569 64.814 34.1621 78.5088 34.1621 95.4022V118.932H95.3386V95.4022Z"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M24.7502 10.6963H104.75"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M24.7502 118.932H104.75"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M34.1621 100.113H50.6327L64.7503 85.9951L78.868 100.113H95.3386"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M40.7502 53.0492H88.7502"
+                      stroke="#C7913A"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </div>
+                <dt class="mt-4 text-3xl font-dmSerif text-brown">
+                  Efficiency issues
+                </dt>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div
+        id="solutions"
+        class="scroll-smooth relative isolate overflow-hidden"
+      >
+        <div class="mx-auto max-w-7xl px-6 lg:px-8">
+          <hr class="border-tan my-32" />
+          <div class="mx-auto max-w-4xl text-center pb-16">
+            <h2 class="text-7xl font-dmSerif tracking-tight text-brown">
+              Our Solutions
+            </h2>
+            <h3 class="text-tan text-2xl font-dmSerif py-8">
+              Don't waste time automating your current processes. We'll co-build
+              new digital processes with your staff to eliminate entire steps
+              and speed up your services.
+            </h3>
+            <p class="text-lg text-brown">
+              The best part is, we deliver real results from the beginning, so
+              it's easy for you to tell if we're delivering on our promise to
+              you.
+            </p>
+          </div>
+          <div
+            class="mx-auto grid grid-cols-1 gap-x-24 gap-y-16 lg:max-w-none lg:grid-cols-3"
+          >
+            <div>
+              <h4 class="text-tan text-3xl font-dmSerif py-8">
+                Step 1:<br /><span class="text-brown">Roadmap</span>
+              </h4>
+              <p class="pb-8 text-lg text-brown">
+                First, let us suggest where to start, what's high value and when
+                you should stop. Some processes are worth digitising and some
+                are definitely not, so why waste your precious funds? <br />
+                <br />We will recommend technology policies and make specific
+                technology recommendations to save you money - regardless of
+                whether you choose us for delivery.
+              </p>
+            </div>
+            <div>
+              <h4 class="text-tan text-3xl font-dmSerif py-8">
+                Step 2:<br /><span class="text-brown"
+                  >Co-build (at our risk)</span
+                >
+              </h4>
+              <p class="pb-8 text-lg text-brown">
+                Try before you buy. You'll get a business result in less than a
+                month <b>or your money back.</b> <br />
+                <br />Let's show you our unique co-building approach with a
+                pilot group of users so we get it right on a small scale before
+                making any grand commitments to everyone. Best of all, your
+                pilot staff will love the approach and be your biggest fans,
+                creating momentum for change.<br />
+                <br />And when you're happy to hit "go" we'll extend and
+                integrate the solution at scale.
+              </p>
+            </div>
+            <div>
+              <h4 class="text-tan text-3xl font-dmSerif py-8">
+                Step 3:<br /><span class="text-brown">Run/rinse/repeat</span>
+              </h4>
+              <p class="pb-8 text-lg text-brown">
+                If you don't want to inherit a tech management burden, we've got
+                you covered with our super competitive fully managed service, so
+                you can focus on delivering more impact to your customers.<br />
+                <br />And if you have more than one problem we'll be happy to
+                help project manage the whole lot for you so we're not putting a
+                burden on your team.'
+              </p>
+            </div>
+          </div>
+          <hr class="border-tan my-32" />
+        </div>
+      </div>
+
+      <div id="results" class="scroll-smooth relative isolate overflow-hidden">
+        <div class="mx-auto max-w-6xl px-6 lg:px-8 pb-32 lg:pb-0">
+          <div
+            class="mx-auto grid max-w-6xl grid-cols-1 gap-x-24 gap-y-16 lg:max-w-none lg:grid-cols-2"
+          >
+            <div class="max-w-xl lg:max-w-lg">
+              <h2 class="text-6xl font-dmSerif tracking-tight text-brown pb-10">
+                The Results
+              </h2>
+              <p class="text-4xl font-dmSerif text-brown py-10">
+                "We doubled the number of participants we can onboard each week
+                with the same team - and we won an industry award for it."
+              </p>
+            </div>
+            <div>
+              <h4 class="mt-4 text-lg font-bold text-tan mb-8">
+                What we delivered
+              </h4>
+              <p class="pb-8 text-lg text-brown">
+                For one of Australia's largest disability service providers we
+                delivered an award-winning digital customer onboarding
+                experience that allowed twice as many new customers to be
+                onboarded every month without hiring additional staff.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        id="contact"
+        class="scroll-smooth bg-chocolate relative isolate pb-32 px-6"
+      >
+        <div class="mx-auto max-w-7xl">
+          <img
+            class="w-svw pb-32"
+            src="images/footer-rectangle-bottom.svg"
+            alt=""
+          />
+          <div
+            class="mx-auto w-10/12 grid grid-cols-1 gap-x-24 gap-y-16 lg:max-w-none lg:grid-cols-2"
+          >
+            <div class="max-w-xl lg:max-w-lg">
+              <h2 class="text-6xl font-dmSerif tracking-tight text-white">
+                Get Started
+              </h2>
+              <p class="text-4xl font-dmSerif text-white my-10">
+                Get us in for a no-commitment chat.<br />
+                <span class="text-tan">We'd love to hear from you.</span>
+              </p>
+              <img
+                class="h-30 w-auto"
+                src="images/truffle-dog-digital-icon.svg"
+                alt=""
+              />
+            </div>
+            <div>
+              <form>
+                <div class="mb-4">
+                  <label class="hidden" for="name"> Name </label>
+                  <input
+                    class="appearance-none border border-tan bg-transparent rounded-lg w-full py-2 px-3 text-white placeholder-ash leading-tight active:border-tan focus:border-white focus:ring-0 focus:outline-none focus:shadow-outline"
+                    id="name"
+                    type="text"
+                    placeholder="Full Name"
+                  />
+                </div>
+                <div class="mb-4">
+                  <label class="hidden" for="phone"> Phone </label>
+                  <input
+                    class="appearance-none border border-tan bg-transparent rounded-lg w-full py-2 px-3 text-white placeholder-ash leading-tight active:border-tan focus:border-white focus:ring-0 focus:outline-none focus:shadow-outline"
+                    id="phone"
+                    type="tel"
+                    placeholder="Phone"
+                  />
+                </div>
+                <div class="mb-6">
+                  <label class="hidden" for="email"> Email </label>
+                  <input
+                    class="appearance-none border border-tan bg-transparent rounded-lg w-full py-2 px-3 text-white placeholder-ash leading-tight active:border-tan focus:border-white focus:ring-0 focus:outline-none focus:shadow-outline"
+                    id="password"
+                    type="email"
+                    placeholder="Email"
+                  />
+                </div>
+                <div class="mb-6">
+                  <label class="hidden" for="message"> Message </label>
+                  <textarea
+                    rows="8"
+                    class="appearance-none border border-tan bg-transparent rounded-lg w-full py-2 px-3 text-white placeholder-ash leading-tight active:border-tan focus:border-white focus:ring-0 focus:outline-none focus:shadow-outline"
+                    id="message"
+                    placeholder="Give us some context on your journey so far"
+                  ></textarea>
+                </div>
+                <div class="flex items-center justify-between">
+                  <button
+                    class="rounded-md bg-tan px-8 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-ash hover:text-brown focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-chocolate"
+                    type="button"
+                  >
+                    Send
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </header>
-
-  <div class="relative isolate px-6 pt-14 lg:px-8">
-    <div class="mx-auto max-w-2xl py-32 sm:py-48 lg:py-56">
-      <div>
-        <h1 class="text-5xl font-dmSerif tracking-tight text-brown sm:text-6xl">Digital solutions<br/><span class="text-tan">in the nonprofit sector.<br/></span> We build, automate & run,<br/> <span class="text-tan"> you deliver more impact.</span></h1>
-        <div class="mt-10 flex items-center gap-x-6">
-          <a href="#contact" class="rounded-md bg-tan px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-chocolate focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-chocolate">Chat with us</a>
-          <a href="#problems" class="text-sm font-semibold leading-6 text-brown hover:text-tan">Learn more <span aria-hidden="true">→</span></a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="bg-chocolate text-center relative isolate ">
-    <div class="mx-auto max-w-7xl text-center">
-        <h2 class="text-7xl font-dmSerif tracking-tight text-white py-32 sm:py-48 lg:py-56">Solutions with purpose</h2>
-        <img class="w-svw" src="images/footer-rectangle.svg" alt="">
-    </div>
-  </div>
-</div>
-
-
-<div id="problems" class="scroll-smooth	relative isolate overflow-hidden pb-10">
-  <div class="mx-auto max-w-6xl px-6 lg:px-8">
-    <div class="mx-auto grid max-w-2xl grid-cols-1 gap-x-24 gap-y-16 lg:max-w-none lg:grid-cols-2">
-      <div class="max-w-xl lg:max-w-lg">
-      	<h2 class="text-6xl font-dmSerif tracking-tight text-brown pb-10">The Problems</h2>
-        <ul class="text-brown list-disc list-outside pl-5 space-y-5 text-lg ">
-        	<li>You likely have an agenda to broaden your reach and deepen your impact - but your systems are holding you back.</li>
-			<li>Your staff and participants are as frustrated with administration and back office systems as they were 5 years ago.</li>
-			<li>You want the digital results but you don't want to inherit a maintenance nightmare.</li>
-			<li>You’ve tried to buy expensive software to fix the problem, but that’s made it worse, not better.</li>
-			<li>A consultancy has proposed spending millions on the vague promise of future returns, but it was too risky.</li>
-
-			</ul>
-		<p class="text-2xl font-dmSerif text-brown py-10">So where to turn?</p>
-		<a href="#contact" class="rounded-md bg-tan px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-chocolate focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-chocolate">Chat with us</a>
-	  </div>
-		<dl class="grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:pt-2">
-	        <div class="flex flex-col items-start">
-	          <div class="rounded-md bg-white/5 p-2 ring-1 ring-white/10">
-	            <svg class="h-24 w-24 text-tan" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-				<path d="M103.112 25.3568C124.713 46.9577 124.713 81.9796 103.112 103.58C81.5112 125.181 46.4893 125.181 24.8884 103.58C3.28752 81.9796 3.28752 46.9577 24.8884 25.3568C46.4893 3.75591 81.5112 3.75591 103.112 25.3568Z" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M93.7361 93.9686C85.5957 77.5405 65.679 70.8219 49.2509 78.9621C42.7415 82.1876 37.4699 87.4593 34.2444 93.9686" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M37.5372 50.0344L56.4821 49.8422" stroke="#C7913A" stroke-width="2" stroke-linecap="round"/>
-				<path d="M39.7219 58.6599L56.4767 49.8162" stroke="#C7913A" stroke-width="2" stroke-linecap="round"/>
-				<path d="M39.1604 42.1298L56.4766 49.8163" stroke="#C7913A" stroke-width="2" stroke-linecap="round"/>
-				<path d="M90.1042 50.0341L71.1594 49.8419" stroke="#C7913A" stroke-width="2" stroke-linecap="round"/>
-				<path d="M87.9196 58.6596L71.1647 49.8159" stroke="#C7913A" stroke-width="2" stroke-linecap="round"/>
-				<path d="M88.4811 42.1295L71.1649 49.816" stroke="#C7913A" stroke-width="2" stroke-linecap="round"/>
-				</svg>
-					          </div>
-	          <dt class="mt-4 text-3xl font-dmSerif text-brown">Frustrated humans</dt>
-	        </div>
-	        <div class="flex flex-col items-start">
-	          <div class="rounded-md bg-white/5 p-2 ring-1 ring-white/10">
-	            <svg class="h-24 w-24 text-tan" viewBox="0 0 128 129" fill="none" xmlns="http://www.w3.org/2000/svg">
-				<path d="M106.667 93.7699C106.667 102.606 99.5031 109.77 90.6666 109.77H37.3333C28.4967 109.77 21.3333 102.606 21.3333 93.7699V51.1033" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M21.3333 35.1033C21.3333 26.2667 28.4967 19.1033 37.3333 19.1033H90.6666C99.5031 19.1033 106.667 26.2667 106.667 35.1033V77.7699" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M5.35461 61.7699L21.3546 51.1033L37.3546 61.7699" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M90.688 67.1033L106.688 77.7699L122.688 67.1033" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M64 35.0819V72.3619" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M63.9998 84.3353C64.7362 84.3353 65.3332 84.9322 65.3332 85.6686C65.3332 86.405 64.7362 87.0019 63.9998 87.0019C63.2635 87.0019 62.6665 86.405 62.6665 85.6686C62.6665 84.9322 63.2635 84.3353 63.9998 84.3353Z" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				</svg>
-
-	          </div>
-	          <dt class="mt-4 text-3xl font-dmSerif text-brown">Poor </br> experience</dt>
-	        </div>
-	        <div class="flex flex-col items-start">
-	          <div class="rounded-md bg-white/5 p-2 ring-1 ring-white/10">
-	            <svg class="h-24 w-24 text-tan" viewBox="0 0 128 129" fill="none" xmlns="http://www.w3.org/2000/svg">
-				<path d="M6.66663 98.1473L45.792 54.1473C47.7794 51.9532 51.1379 51.7023 53.4293 53.5766L77.2373 73.4166C79.5276 75.2912 82.8873 75.0327 84.864 72.8299L121.333 31.4806" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<g clip-path="url(#clip0_3_10489)">
-				<path d="M50.0834 77.1186H51.9167V78.9519H50.0834V77.1186ZM50.0834 69.7852H51.9167V75.2852H50.0834V69.7852ZM50.9909 65.2019C45.9309 65.2019 41.8334 69.3086 41.8334 74.3686C41.8334 79.4286 45.9309 83.5352 50.9909 83.5352C56.06 83.5352 60.1667 79.4286 60.1667 74.3686C60.1667 69.3086 56.06 65.2019 50.9909 65.2019ZM51 81.7019C46.9484 81.7019 43.6667 78.4202 43.6667 74.3686C43.6667 70.3169 46.9484 67.0352 51 67.0352C55.0517 67.0352 58.3334 70.3169 58.3334 74.3686C58.3334 78.4202 55.0517 81.7019 51 81.7019Z" fill="#C7913A"/>
-				</g>
-				<g clip-path="url(#clip1_3_10489)">
-				<path d="M80.0834 55.1186H81.9167V56.9519H80.0834V55.1186ZM80.0834 47.7852H81.9167V53.2852H80.0834V47.7852ZM80.9909 43.2019C75.9309 43.2019 71.8334 47.3086 71.8334 52.3686C71.8334 57.4286 75.9309 61.5352 80.9909 61.5352C86.06 61.5352 90.1667 57.4286 90.1667 52.3686C90.1667 47.3086 86.06 43.2019 80.9909 43.2019ZM81 59.7019C76.9484 59.7019 73.6667 56.4202 73.6667 52.3686C73.6667 48.3169 76.9484 45.0352 81 45.0352C85.0517 45.0352 88.3334 48.3169 88.3334 52.3686C88.3334 56.4202 85.0517 59.7019 81 59.7019Z" fill="#C7913A"/>
-				</g>
-				<path d="M84.3306 31.4806H121.333V63.3686" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<defs>
-				<clipPath id="clip0_3_10489">
-				<rect width="22" height="22" fill="white" transform="translate(40 63.3685)"/>
-				</clipPath>
-				<clipPath id="clip1_3_10489">
-				<rect width="22" height="22" fill="white" transform="translate(70 41.3685)"/>
-				</clipPath>
-				</defs>
-				</svg>
-
-	          </div>
-	          <dt class="mt-4 text-3xl font-dmSerif text-brown">Difficult </br> to grow</dt>
-	        </div>
-	        <div class="flex flex-col items-start">
-	          <div class="rounded-md bg-white/5 p-2 ring-1 ring-white/10">
-	            <svg class="h-24 w-24 text-tan" viewBox="0 0 129 129" fill="none" xmlns="http://www.w3.org/2000/svg">
-				<path d="M95.3386 34.2257C95.3386 51.1191 81.6438 64.8139 64.7503 64.8139C47.8569 64.8139 34.1621 51.1191 34.1621 34.2257V10.6963H95.3386V34.2257Z" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M95.3386 95.4022C95.3386 78.5088 81.6438 64.814 64.7503 64.814C47.8569 64.814 34.1621 78.5088 34.1621 95.4022V118.932H95.3386V95.4022Z" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M24.7502 10.6963H104.75" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M24.7502 118.932H104.75" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M34.1621 100.113H50.6327L64.7503 85.9951L78.868 100.113H95.3386" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<path d="M40.7502 53.0492H88.7502" stroke="#C7913A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				</svg>
-
-	          </div>
-	          <dt class="mt-4 text-3xl font-dmSerif text-brown">Efficiency issues</dt>
-	        </div>
-	      </dl>
- 	 </div>
-  </div>
-</div>
-
-<div id="solutions" class="scroll-smooth relative isolate overflow-hidden">
-  <div class="mx-auto max-w-7xl px-6 lg:px-8">
-  	<hr class="border-tan my-32">
-  	<div class="mx-auto max-w-4xl text-center pb-16">
-	  	<h2 class="text-7xl font-dmSerif tracking-tight text-brown">Our Solutions</h2>
-	    <h3 class="text-tan text-2xl font-dmSerif py-8">Don’t waste time automating your current processes. We’ll co-build new digital processes with your staff to eliminate entire steps and speed up your services.</h3>
-		<p class="text-lg text-brown">The best part is, we deliver real results from the beginning, so it’s easy for you to tell if we’re delivering on our promise to you.</p>
-	</div>
-    <div class="mx-auto grid grid-cols-1 gap-x-24 gap-y-16 lg:max-w-none lg:grid-cols-3">
-		<div>
-		  <h4 class="text-tan text-3xl font-dmSerif py-8">Step 1:<br><span class="text-brown">Roadmap</span></h4>
-		  <p class="pb-8 text-lg text-brown">First, let us suggest where to start, what’s high value and when you should stop.  Some processes are worth digitising and some are definitely not, so why waste your precious funds?  <br/> <br/>We will recommend technology policies and make specific technology recommendations to save you money - regardless of whether you choose us for delivery.</p>
-		</div>
-		<div>
-		  <h4 class="text-tan text-3xl font-dmSerif py-8">Step 2:<br><span class="text-brown">Co-build (at our risk)</span></h4>
-		  <p class="pb-8 text-lg text-brown">Try before you buy. You’ll get a business result in less than a month <b>or your money back.</b>   <br/> <br/>Let’s show you our unique co-building approach with a pilot group of users so we get it right on a small scale before making any grand commitments to everyone. Best of all, your pilot staff will love the approach and be your biggest fans, creating momentum for change.<br/> <br/>And when you're happy to hit "go" we'll extend and integrate the solution at scale.</p>
-		</div>
-		<div>
-		  <h4 class="text-tan text-3xl font-dmSerif py-8">Step 3:<br><span class="text-brown">Run/rinse/repeat</span></h4>
-		  <p class="pb-8 text-lg text-brown"> If you don't want to inherit a tech management burden, we've got you covered with our super competitive fully managed service, so you can focus on delivering more impact to your customers.<br/> <br/>And if you have more than one problem we'll be happy to help project manage the whole lot for you so we're not putting a burden on your team.'</p>
-		</div>
- 	 </div>
- 	 <hr class="border-tan my-32">
-  </div>
-</div>
-
-<div id="results" class="scroll-smooth	relative isolate overflow-hidden">
-  <div class="mx-auto max-w-6xl px-6 lg:px-8 pb-32 lg:pb-0">
-    <div class="mx-auto grid max-w-6xl grid-cols-1 gap-x-24 gap-y-16 lg:max-w-none lg:grid-cols-2">
-		<div class="max-w-xl lg:max-w-lg">
-			<h2 class="text-6xl font-dmSerif tracking-tight text-brown pb-10">The Results</h2>
-			<p class="text-4xl font-dmSerif text-brown py-10">"We doubled the number of participants we can onboard each week with the same team - and we won an industry  award for it."</p>
-		</div>
-		<div>
-		  <h4 class="mt-4 text-lg font-bold text-tan mb-8">What we delivered</h4>
-		  <p class="pb-8 text-lg text-brown">For one of Australia's largest disability service providers we delivered an award-winning digital customer onboarding experience that allowed twice as many new customers to be onboarded every month without hiring additional staff.</p>
-		</div>
- 	 </div>
-  </div>
-</div>
-  
-<div id="contact" class="scroll-smooth bg-chocolate relative isolate pb-32 px-6">
-	<div class="mx-auto max-w-7xl">
-		<img class="w-svw pb-32" src="images/footer-rectangle-bottom.svg" alt="">
-		<div class="mx-auto w-10/12 grid grid-cols-1 gap-x-24 gap-y-16 lg:max-w-none lg:grid-cols-2">
-			<div class="max-w-xl lg:max-w-lg">
-				<h2 class="text-6xl font-dmSerif tracking-tight text-white">Get Started</h2>
-				<p class="text-4xl font-dmSerif text-white my-10">Get us in for a no-commitment chat.<br> <span class="text-tan">We’d love to hear from you.</span></p>
-				<img class="h-30 w-auto" src="images/truffle-dog-digital-icon.svg" alt="">
-			</div>
-			<div>
-			  <form>
-			    <div class="mb-4">
-			      <label class="hidden" for="name">
-			        Name
-			      </label>
-			      <input class="appearance-none border border-tan bg-transparent rounded-lg w-full py-2 px-3 text-white placeholder-ash leading-tight active:border-tan focus:border-white focus:ring-0 focus:outline-none focus:shadow-outline" id="name" type="text" placeholder="Full Name">
-			    </div>
-			    <div class="mb-4">
-			      <label class="hidden" for="phone">
-			        Phone
-			      </label>
-			      <input class="appearance-none border border-tan bg-transparent rounded-lg w-full py-2 px-3 text-white placeholder-ash leading-tight active:border-tan focus:border-white focus:ring-0 focus:outline-none focus:shadow-outline" id="phone" type="tel" placeholder="Phone">
-			    </div>
-			    <div class="mb-6">
-			      <label class="hidden" for="email">
-			        Email
-			      </label>
-			      <input class="appearance-none border border-tan bg-transparent rounded-lg w-full py-2 px-3 text-white placeholder-ash leading-tight active:border-tan focus:border-white focus:ring-0 focus:outline-none focus:shadow-outline" id="password" type="email" placeholder="Email">
-			    </div>
-			    <div class="mb-6">
-			      <label class="hidden" for="message">
-			        Message
-			      </label>
-			      <textarea rows="8" class="appearance-none border border-tan bg-transparent rounded-lg w-full py-2 px-3 text-white placeholder-ash leading-tight active:border-tan focus:border-white focus:ring-0 focus:outline-none focus:shadow-outline" id="message" placeholder="Give us some context on your journey so far"></textarea>
-			    </div>
-			    <div class="flex items-center justify-between">
-			      <button class="rounded-md bg-tan px-8 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-ash hover:text-brown focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-chocolate" type="button">
-			        Send
-			      </button>
-			    </div>
-			  </form>
-			</div>
-		</div>
-	</div>
-</div>
-
-</div>
-
-</body>
+  </body>
 </html>
