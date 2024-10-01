@@ -1,5 +1,7 @@
 #!/bin/zsh
 
+# Dummy text to force publish
+
 # Set PATH, MANPATH, etc., for Homebrew.
 eval "$(/opt/homebrew/bin/brew shellenv)"
 
