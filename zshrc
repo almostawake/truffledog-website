@@ -1,13 +1,15 @@
 #!/bin/zsh
 
-# Dummy text to force publish
-
 # Set PATH, MANPATH, etc., for Homebrew.
 eval "$(/opt/homebrew/bin/brew shellenv)"
 
-# Simple prompt
-export PS1='%~ %# '
+# Quietly set node version based on .nvmrc for new shells
+if [ -f .nvmrc ]; then
+  nvm use
+fi
 
+# Simple prompt
+export PS1='%F{cyan}%~%f: '
 # Custom binaries in ~/bin
 export PATH="$PATH:~/bin"
 
