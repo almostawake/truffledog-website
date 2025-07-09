@@ -26,7 +26,4 @@ if [ -f .nvmrc ]; then
   nvm use
 fi
 
-
 alias ll="ls -al"
-
-
