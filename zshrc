@@ -27,4 +27,3 @@ if [ -f .nvmrc ]; then
 fi
 
 alias ll="ls -al"
-alias python="/opt/homebrew/bin/python3.11"
