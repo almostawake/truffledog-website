@@ -27,3 +27,5 @@ if [ -f .nvmrc ]; then
 fi
 
 alias ll="ls -al"
+alias se="npm run start:emulators"
+alias sc="npm run start:client"
