@@ -9,8 +9,10 @@ export PS1='%F{cyan}%~%f: '
 # Custom binaries in ~/bin
 export PATH="$PATH:~/bin"
 
-# jre/jdk
-export JAVA_HOME=/opt/homebrew/opt/openjdk
+# Set JAVA_HOME using macOS java_home utility
+if [[ -x /usr/libexec/java_home ]]; then
+  export JAVA_HOME=$(/usr/libexec/java_home)
+fi
 export PATH="$JAVA_HOME/bin:$PATH"
 
 # Xcode Command Line Tools
