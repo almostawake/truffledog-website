@@ -41,8 +41,20 @@ if [ -f .nvmrc ]; then
       MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${MAJOR}\." | sed 's/^v//' | sort -V | tail -1)
     fi
   else
-    # For version numbers (exact, major only, etc.)
-    MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${CLEAN_VERSION}" | sed 's/^v//' | sort -V | tail -1)
+    # For version numbers (exact, major only, etc.) - improved matching
+    # Count dots to determine specificity
+    DOT_COUNT=$(echo "$CLEAN_VERSION" | tr -cd '.' | wc -c)
+    
+    if [ "$DOT_COUNT" -eq 0 ]; then
+      # Major only (e.g., "22") - match exactly major.anything
+      MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${CLEAN_VERSION}\." | sed 's/^v//' | sort -V | tail -1)
+    elif [ "$DOT_COUNT" -eq 1 ]; then
+      # Major.minor (e.g., "22.1") - match exactly major.minor.anything
+      MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${CLEAN_VERSION}\." | sed 's/^v//' | sort -V | tail -1)
+    else
+      # Full version (e.g., "22.1.0") - match exactly
+      MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${CLEAN_VERSION}$" | sed 's/^v//')
+    fi
   fi
   
   if [ -n "$MATCHED_VERSION" ] && [ -d "$NVM_DIR/versions/node/v$MATCHED_VERSION" ]; then
