@@ -17,11 +17,7 @@ export PATH="/Library/Developer/CommandLineTools/usr/bin:$PATH"
 
 # Node Version Manager - Non-interactive safe version
 export NVM_DIR="$HOME/.nvm"
-
-# Add nvm binaries to PATH for non-interactive shells
-if [ -d "$NVM_DIR" ]; then
-  export PATH="$NVM_DIR:$PATH"
-fi
+[ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh" >/dev/null 2>&1
 
 if [ -f .nvmrc ]; then
   NVMRC_CONTENT=$(cat .nvmrc)
