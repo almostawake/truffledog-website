@@ -3,9 +3,6 @@
 # Simple prompt
 export PS1='%F{blue}%~%f > '
 
-# NVM bash completion (interactive only)
-[ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
-
 # Aliases
 alias ll="ls -al"
 alias se="npm run start:emulators"
