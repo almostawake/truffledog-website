@@ -10,3 +10,4 @@ export PS1='%F{blue}%~%f > '
 alias ll="ls -al"
 alias se="npm run start:emulators"
 alias sc="npm run start:client"
+

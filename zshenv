@@ -18,8 +18,9 @@ export PATH="/Library/Developer/CommandLineTools/usr/bin:$PATH"
 # Node Version Manager
 export NVM_DIR="$HOME/.nvm"
 [ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  
-
-# Quietly set node version based on .nvmrc for new shells
-if [ -f .nvmrc ]; then
-  nvm use
+if [ -f .nvmrc ] && [ -d "$NVM_DIR/versions/node" ]; then
+  NODE_VERSION=$(cat .nvmrc)
+  if [ -d "$NVM_DIR/versions/node/v$NODE_VERSION" ]; then
+    export PATH="$NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH"
+  fi
 fi
