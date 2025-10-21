@@ -3,6 +3,9 @@
 # Set PATH, MANPATH, etc., for Homebrew.
 eval "$(/opt/homebrew/bin/brew shellenv)"
 
+# Update Claude Code
+brew upgrade --cask claude-code
+
 # Custom binaries in ~/bin
 export PATH="$PATH:~/bin"
 
