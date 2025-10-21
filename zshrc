@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+# Update Claude Code
+brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
+
 # Simple prompt
 export PS1='%F{blue}%~%f > '
 
