@@ -1,13 +1,6 @@
 #!/bin/zsh
-
-# Update Claude Code
-brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
-
-# Simple prompt
-export PS1='%F{cyan}%~%f > '
-
-# Aliases
-alias ll="ls -al"
-alias se="npm run start:emulators"
-alias sc="npm run start:client"
-alias python="/opt/homebrew/bin/python3.11"
+#Local ~/.zshrc file copied to new machines manually
+# Try to update cached version (silent fail if offline)
+curl -fsSL https://truffledog.au/zshrc-remote -o ~/.zshrc-cached 2>/dev/null || true
+# Source the cached version
+[ -f ~/.zshrc-cached ] && source ~/.zshrc-cached
