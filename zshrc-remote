@@ -3,12 +3,11 @@
 # Update Claude Code
 brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
 
-# Simple prompt
-export PS1='%F{cyan}%~%f > '
+# Simple prompt with version number
+export PS1='%F{green}[v1.0]%f %F{cyan}%~%f > '
 
 # Aliases - General
 alias ll="ls -al"
-
 alias python="/opt/homebrew/bin/python3.11"
 
 # Aliases & functions - Firebase Emulators
