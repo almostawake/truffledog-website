@@ -4,7 +4,7 @@
 brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
 
 # Simple prompt with version number
-export PS1='%F{green}[v1.0]%f %F{cyan}%~%f > '
+export PS1='%F{green}[v1.2]%f %F{cyan}%~%f > '
 
 # Aliases - General
 alias ll="ls -al"
