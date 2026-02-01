@@ -16,5 +16,20 @@ alias ba="npm run build:all"
 wa() { npm run build:common:watch & npm run build:functions:watch & wait; }
 alias se="npm run start:emulators"
 alias sc="npm run start:client"
+alias bs="curl -X POST http://127.0.0.1:5001/bean-development/australia-southeast1/admin/bootstrap"
 alias sp="ports=\$(lsof -nP -i :9099 -i :5001 -i :8080 -i :5002 -i :9199 -i :8085 2>/dev/null | awk 'NR>1 {print \$9}' | sed 's/.*://' | sed 's/->.*//' | sort -n | uniq | xargs); [ -n \"\$ports\" ] && echo \"Ports taken: \$ports\" || echo \"All ports free\""
 alias kp="kill -9 \$(lsof -ti :9099 -ti :5001 -ti :8080 -ti :5002 -ti :9199 -ti :8085 -ti :3000)"
+
+# List aliases/commands
+c() {
+  echo "Shortcuts:"
+  echo ""
+  echo "  ia    install:all"
+  echo "  ba    build:all"
+  echo "  wa    watch functions/common (concurrently)"
+  echo "  se    start emulators"
+  echo "  sc    start client"
+  echo "  bs    run bootstrap"
+  echo "  sp    show emulator ports in use"
+  echo "  kp    kills emulator ports in use"
+}
