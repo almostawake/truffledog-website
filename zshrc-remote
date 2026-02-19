@@ -14,7 +14,7 @@ alias ll="ls -al"
 alias python="/opt/homebrew/bin/python3.11"
 
 # Aliases & functions - Firebase Emulators
-alias ca="find . -name \"node_modules\" -type d -prune -exec rm -rf '{}' + && find . -name \"__pycache__\" -type d -prune -exec rm -rf '{}' + && find . -name \"venv\" -type d -prune -exec rm -rf '{}' + && find . -name \"package-lock.json\" -type f -delete"
+alias ca="find . -name \"node_modules\" -type d -prune -exec rm -rf '{}' + && find . -name \"__pycache__\" -type d -prune -exec rm -rf '{}' + && find . -name \"venv\" -type d -prune -exec rm -rf '{}' + && find . -name \"build\" -type d -prune -exec rm -rf '{}' + && find . -name \"dist\" -type d -prune -exec rm -rf '{}' + && find . -name \"package-lock.json\" -type f -delete"
 alias ia="npm run install:all"
 alias ba="npm run build:all"
 wa() { npm run build:common:watch & npm run build:functions:watch & wait; }
@@ -28,7 +28,7 @@ alias kp="kill -9 \$(lsof -ti :9099 -ti :5001 -ti :8080 -ti :5002 -ti :9199 -ti 
 c() {
   echo "Shortcuts:"
   echo ""
-  echo "  ca    clear all node_modules, __pycache__, venv directories and package-lock.json files"
+  echo "  ca    clear all node/python cache plus dist/build directories .. and package-lock.json files"
   echo "  ia    install:all"
   echo "  ba    build:all"
   echo "  wa    watch functions/common (concurrently)"
