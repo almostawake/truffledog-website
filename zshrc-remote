@@ -4,7 +4,7 @@
 brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
 
 # Simple prompt with version number
-export PS1='%F{green}[v1.5]%f %F{cyan}%~%f > '
+export PS1='%F{green}[v1.6]%f %F{cyan}%~%f > '
 
 # Turn off Claude auto updater, let brew handle it
 export DISABLE_AUTOUPDATER=1
@@ -14,7 +14,7 @@ alias ll="ls -al"
 alias python="/opt/homebrew/bin/python3.11"
 
 # Aliases & functions - Firebase Emulators
-alias ca="find . -name \"node_modules\" -type d -prune -exec rm -rf '{}' + && find . -name \"__pycache__\" -type d -prune -exec rm -rf '{}' + && find . -name \"venv\" -type d -prune -exec rm -rf '{}' + && find . -name \"build\" -type d -prune -exec rm -rf '{}' + && find . -name \"dist\" -type d -prune -exec rm -rf '{}' + && find . -name \"package-lock.json\" -type f -delete"
+alias ca="find . -name \"node_modules\" -type d -prune -exec rm -rf '{}' + && find . -name \"__pycache__\" -type d -prune -exec rm -rf '{}' + && find . -name \"venv\" -type d -prune -exec rm -rf '{}' + && find . -name \"build\" -type d -prune -exec rm -rf '{}' + && find . -name \"dist\" -type d -prune -exec rm -rf '{}' + && find . -name \"coverage\" -type d -prune -exec rm -rf '{}' + && find . -name \".vite\" -type d -prune -exec rm -rf '{}' + && find . -name \".eslintcache\" -type f -delete && find . -name \".dccache\" -type d -prune -exec rm -rf '{}' + && find . -name \"package-lock.json\" -type f -delete"
 alias ia="npm run install:all"
 alias ba="npm run build:all"
 wa() { npm run build:common:watch & npm run build:functions:watch & wait; }
@@ -28,7 +28,7 @@ alias kp="kill -9 \$(lsof -ti :9099 -ti :5001 -ti :8080 -ti :5002 -ti :9199 -ti 
 c() {
   echo "Shortcuts:"
   echo ""
-  echo "  ca    clear all node/python cache plus dist/build directories .. and package-lock.json files"
+  echo "  ca    clear all cache directories and files including package-lock.json"
   echo "  ia    install:all"
   echo "  ba    build:all"
   echo "  wa    watch functions/common (concurrently)"
