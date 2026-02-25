@@ -3,8 +3,13 @@
 # Update Claude Code
 brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
 
+# Load pyenv automatically
+export PYENV_ROOT="$HOME/.pyenv"
+[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init - zsh)"
+
 # Simple prompt with version number
-export PS1='%F{green}[v1.7]%f %F{cyan}%~%f > '
+export PS1='%F{green}[v1.8]%f %F{cyan}%~%f > '
 
 # Turn off Claude auto updater, let brew handle it
 export DISABLE_AUTOUPDATER=1
