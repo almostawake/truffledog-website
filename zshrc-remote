@@ -12,7 +12,7 @@ if [[ -d "$HOME/.pyenv/shims" ]]; then
 fi
 
 # Simple prompt with version number
-export PS1='%F{green}[v2.1]%f %F{cyan}%~%f > '
+export PS1='%F{green}[v2.2]%f %F{cyan}%~%f > '
 
 # Aliases - General
 alias ll="ls -al"
