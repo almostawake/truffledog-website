@@ -61,7 +61,7 @@ if [ -f .nvmrc ]; then
   if [ -n "$MATCHED_VERSION" ] && [ -d "$NVM_DIR/versions/node/v$MATCHED_VERSION" ]; then
     NODE_MAJOR=$(echo "$MATCHED_VERSION" | cut -d. -f1)
     NODE_MINOR=$(echo "$MATCHED_VERSION" | cut -d. -f2)
-    echo "Resolved Node version major=$NODE_MAJOR minor=$NODE_MINOR (from .nvmrc: $NVMRC_CONTENT)"
+    echo "Resolved Node version major=$NODE_MAJOR minor=$NODE_MINOR"
     export PATH="$NVM_DIR/versions/node/v$MATCHED_VERSION/bin:$PATH"
   fi
 fi
