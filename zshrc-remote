@@ -12,10 +12,11 @@ if [[ -d "$HOME/.pyenv/shims" ]]; then
 fi
 
 # Simple prompt with version number
-export PS1='%F{green}[v2.3]%f %F{cyan}%~%f > '
+export PS1='%F{green}[v2.4]%f %F{cyan}%~%f > '
 
 # Aliases - General
 alias ll="ls -al"
+alias cc="claude --dangerously-skip-permissions"
 
 # Aliases & functions - Firebase Emulators
 alias ca="find . -name \"node_modules\" -type d -prune -exec rm -rf '{}' + && find . -name \"__pycache__\" -type d -prune -exec rm -rf '{}' + && find . -name \"venv\" -type d -prune -exec rm -rf '{}' + && find . -name \"build\" -type d -prune -exec rm -rf '{}' + && find . -name \"dist\" -type d -prune -exec rm -rf '{}' + && find . -name \"coverage\" -type d -prune -exec rm -rf '{}' + && find . -name \".vite\" -type d -prune -exec rm -rf '{}' + && find . -name \".eslintcache\" -type f -delete && find . -name \".dccache\" -type d -prune -exec rm -rf '{}' + && find . -name \"package-lock.json\" -type f -delete"
@@ -63,4 +64,5 @@ c() {
   echo "  bs    run bootstrap"
   echo "  sp    show emulator ports in use"
   echo "  kp    kills emulator ports in use"
+  echo "  cc    claude --dangerously-skip-permissions"
 }
