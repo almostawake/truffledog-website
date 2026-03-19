@@ -1,8 +1,13 @@
 #!/bin/zsh
+ZSHRC_VERSION="2.8"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
 # export DISABLE_AUTOUPDATER=1
+
+# Remove mac osx terminal keybindings that interfere with claude code CLI
+bindkey -r '^T'
+bindkey -r '^B'
 
 # Load pyenv automatically (only if installed)
 if [[ -d "$HOME/.pyenv/shims" ]]; then
@@ -12,7 +17,7 @@ if [[ -d "$HOME/.pyenv/shims" ]]; then
 fi
 
 # Simple prompt with version number
-export PS1='%F{green}[v2.6]%f %F{cyan}%~%f > '
+export PS1="%F{green}[v${ZSHRC_VERSION}]%f %F{cyan}%~%f > "
 
 # Aliases - General
 alias ll="ls -al"
