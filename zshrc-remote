@@ -1,5 +1,5 @@
 #!/bin/zsh
-ZSHRC_VERSION="2.8"
+ZSHRC_VERSION="2.9"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
@@ -54,7 +54,8 @@ ra() {
 alias sc="npm run start:client"
 alias bs="curl -X POST http://127.0.0.1:5001/bean-development/australia-southeast1/admin/bootstrap"
 alias sp="ports=\$(lsof -nP -i :9099 -i :5001 -i :8080 -i :5002 -i :9199 -i :8085 2>/dev/null | awk 'NR>1 {print \$9}' | sed 's/.*://' | sed 's/->.*//' | sort -n | uniq | xargs); [ -n \"\$ports\" ] && echo \"Ports taken: \$ports\" || echo \"All ports free\""
-alias kp="kill -9 \$(lsof -ti :9099 -ti :5001 -ti :8080 -ti :5002 -ti :9199 -ti :8085 -ti :3000)"
+alias kp="lsof -ti :9099 -ti :5001 -ti :8080 -ti :5002 -ti :9199 -ti :8085 -ti :3000 -ti :4400 | xargs kill"
+alias 'kp!'="kill -9 \$(lsof -ti :9099 -ti :5001 -ti :8080 -ti :5002 -ti :9199 -ti :8085 -ti :3000 -ti :4400)"
 
 # List aliases/commands
 c() {
@@ -69,7 +70,8 @@ c() {
   echo "  sc    start client"
   echo "  bs    run bootstrap"
   echo "  sp    show emulator ports in use"
-  echo "  kp    kills emulator ports in use"
+  echo "  kp    graceful kill emulator ports (SIGTERM)"
+  echo "  kp!   force kill emulator ports (SIGKILL)"
   echo "  cc    claude --dangerously-skip-permissions"
   echo "  ch    launch Chrome with remote debugging (port 9222)"
 }
