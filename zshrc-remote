@@ -1,5 +1,5 @@
 #!/bin/zsh
-ZSHRC_VERSION="3.3"
+ZSHRC_VERSION="34"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
@@ -22,6 +22,8 @@ append_path "$HOME/.local/bin"
 prepend_path "$JAVA_HOME/bin"
 prepend_path "/Library/Developer/CommandLineTools/usr/bin"
 prepend_path "/opt/homebrew/opt/ruby/bin"
+
+export CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL=1
 
 # Node version selection from .nvmrc (resolves against installed nvm versions,
 # no nvm use/install — fast and non-interactive)
