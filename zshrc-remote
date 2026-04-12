@@ -1,5 +1,5 @@
 #!/bin/zsh
-ZSHRC_VERSION="3.2"
+ZSHRC_VERSION="3.3"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
@@ -9,10 +9,53 @@ ZSHRC_VERSION="3.2"
 bindkey -r '^T'
 bindkey -r '^B'
 
+# ---- PATH setup ----
+# Authoritative for interactive shells. macOS /etc/zprofile runs path_helper
+# before zshrc, so we assert ordering here (after path_helper) rather than in
+# zshenv-remote where prepends would be clobbered. Helpers guard on existence
+# so the same file is portable across machines without breaking PATH.
+prepend_path() { [[ -d "$1" ]] && export PATH="$1:$PATH"; }
+append_path()  { [[ -d "$1" ]] && export PATH="$PATH:$1"; }
+
+append_path "$HOME/bin"
+append_path "$HOME/.local/bin"
+prepend_path "$JAVA_HOME/bin"
+prepend_path "/Library/Developer/CommandLineTools/usr/bin"
+prepend_path "/opt/homebrew/opt/ruby/bin"
+
+# Node version selection from .nvmrc (resolves against installed nvm versions,
+# no nvm use/install — fast and non-interactive)
+if [ -f .nvmrc ]; then
+  NVMRC_CONTENT=$(cat .nvmrc)
+  CLEAN_VERSION=$(echo "$NVMRC_CONTENT" | sed 's/^v//' | sed 's/^lts\///')
+  if [ "$NVMRC_CONTENT" = "lts/*" ]; then
+    MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E '^v[0-9]+\.' | sed 's/^v//' | awk -F. '{if ($1 % 2 == 0) print}' | sort -V | tail -1)
+  elif echo "$NVMRC_CONTENT" | grep -q "^lts/"; then
+    case "$CLEAN_VERSION" in
+      "krypton")  MAJOR="24" ;;
+      "jod")      MAJOR="22" ;;
+      "iron")     MAJOR="20" ;;
+      "hydrogen") MAJOR="18" ;;
+      *)          MAJOR="" ;;
+    esac
+    if [ -n "$MAJOR" ]; then
+      MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${MAJOR}\." | sed 's/^v//' | sort -V | tail -1)
+    fi
+  else
+    DOT_COUNT=$(echo "$CLEAN_VERSION" | tr -cd '.' | wc -c)
+    if [ "$DOT_COUNT" -eq 2 ]; then
+      MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${CLEAN_VERSION}$" | sed 's/^v//')
+    else
+      MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${CLEAN_VERSION}\." | sed 's/^v//' | sort -V | tail -1)
+    fi
+  fi
+  [ -n "$MATCHED_VERSION" ] && prepend_path "$NVM_DIR/versions/node/v$MATCHED_VERSION/bin"
+fi
+
 # Load pyenv automatically (only if installed)
 if [[ -d "$HOME/.pyenv/shims" ]]; then
   export PYENV_ROOT="$HOME/.pyenv"
-  export PATH="$PYENV_ROOT/shims:$PATH"
+  prepend_path "$PYENV_ROOT/shims"
   eval "$(pyenv init - zsh)"
 fi
 
