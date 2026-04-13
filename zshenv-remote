@@ -7,10 +7,13 @@
 # Set PATH, MANPATH, etc., for Homebrew.
 eval "$(/opt/homebrew/bin/brew shellenv)"
 
-# Set JAVA_HOME using macOS java_home utility
-if [[ -x /usr/libexec/java_home ]]; then
-  export JAVA_HOME=$(/usr/libexec/java_home)
+# Set JAVA_HOME using macOS java_home utility. Only if it actually resolves a
+# JDK — /usr/libexec/java_home always exists on macOS but prints an "Unable to
+# locate a Java Runtime" error to stderr when no Java is installed.
+if _jh="$(/usr/libexec/java_home 2>/dev/null)"; then
+  export JAVA_HOME="$_jh"
 fi
+unset _jh
 
 # Google Cloud SDK
 [ -f '/Users/wombat/google-cloud-sdk/path.zsh.inc' ] && . '/Users/wombat/google-cloud-sdk/path.zsh.inc'

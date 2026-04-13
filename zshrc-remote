@@ -1,5 +1,5 @@
 #!/bin/zsh
-ZSHRC_VERSION="34"
+ZSHRC_VERSION="35"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
@@ -19,7 +19,7 @@ append_path()  { [[ -d "$1" ]] && export PATH="$PATH:$1"; }
 
 append_path "$HOME/bin"
 append_path "$HOME/.local/bin"
-prepend_path "$JAVA_HOME/bin"
+[[ -n "$JAVA_HOME" ]] && prepend_path "$JAVA_HOME/bin"
 prepend_path "/Library/Developer/CommandLineTools/usr/bin"
 prepend_path "/opt/homebrew/opt/ruby/bin"
 
