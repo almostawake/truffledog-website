@@ -66,8 +66,13 @@ if command -v node >/dev/null 2>&1; then
   fi
 fi
 
-have_java=false
-command -v java >/dev/null 2>&1 && have_java=true
+have_java21=false
+if command -v java >/dev/null 2>&1; then
+  jm="$(java -version 2>&1 | awk -F '"' '/version/ {print $2}' | cut -d. -f1)"
+  if [ -n "$jm" ] && [ "$jm" -ge 21 ] 2>/dev/null; then
+    have_java21=true
+  fi
+fi
 
 have_firebase=false
 command -v firebase >/dev/null 2>&1 && have_firebase=true
@@ -99,7 +104,7 @@ print_item() {
 }
 
 print_item "Node.js 22"        "$have_node22"   "→ ~/.appsvelte/node/"
-print_item "OpenJDK 21 (JRE)"  "$have_java"     "→ ~/.appsvelte/java/"
+print_item "OpenJDK 21 (JRE)"  "$have_java21"     "→ ~/.appsvelte/java/"
 print_item "firebase-tools"    "$have_firebase" "→ via npm"
 print_item "Claude Code CLI"   "$have_claude"   "→ via npm"
 
@@ -115,7 +120,7 @@ To uninstall later:  curl -fsSL $UNINSTALL_URL | bash
 NOTE
 
 # --- Prompt 1: proceed with deps install? ---
-if $have_node22 && $have_java && $have_firebase && $have_claude; then
+if $have_node22 && $have_java21 && $have_firebase && $have_claude; then
   say "All dependencies already installed."
 else
   if ! prompt_yn "Do you wish to proceed?" "Y"; then
@@ -146,7 +151,7 @@ if ! $have_node22; then
 fi
 
 # --- Install Java ---
-if ! $have_java; then
+if ! $have_java21; then
   say ""
   say "Installing OpenJDK $JAVA_VERSION (JRE)..."
   mkdir -p "$APPSVELTE_HOME/java"
@@ -169,7 +174,7 @@ if ! $have_java; then
 fi
 
 # --- Update .zprofile (idempotent via marker block) ---
-if ! $have_node22 || ! $have_java; then
+if ! $have_node22 || ! $have_java21; then
   zprofile="$HOME/.zprofile"
   if [ ! -f "$zprofile" ] || ! grep -q "$MARKER_START" "$zprofile" 2>/dev/null; then
     if [ "$OS" = "darwin" ]; then
