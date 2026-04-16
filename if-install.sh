@@ -278,9 +278,16 @@ if [ "$OS" = "darwin" ] && $have_chrome; then
   if [ ! -d "$CHROME_PROFILE" ]; then
     say ""
     say "Setting up Chrome profile for Claude Code..."
-    # Kill Chrome if running — can't move its data dir while it has a lock
-    killall -9 "Google Chrome" 2>/dev/null
-    while pgrep -qf "Google Chrome"; do sleep 0.5; done
+    # Graceful quit — can't move data dir while Chrome has a lock
+    osascript -e 'tell application "Google Chrome" to quit' 2>/dev/null
+    for i in $(seq 1 10); do
+      pgrep -qf "Google Chrome" || break
+      sleep 0.5
+    done
+    if pgrep -qf "Google Chrome"; then
+      killall -9 "Google Chrome" 2>/dev/null
+      while pgrep -qf "Google Chrome"; do sleep 0.5; done
+    fi
     if [ -d "$CHROME_DEFAULT" ]; then
       mv "$CHROME_DEFAULT" "$CHROME_PROFILE"
       printf '  %s Moved Chrome profile to %s\n' "$(tick)" "$CHROME_PROFILE"
@@ -340,9 +347,17 @@ CHROMEPLIST
   # Launcher script
   cat > "$CHROME_APP/Contents/MacOS/Chrome with Claude Code" << 'CHROMELAUNCH'
 #!/bin/bash
-# Kill existing Chrome instances
-killall -9 'Google Chrome' 2>/dev/null
-while pgrep -qf 'Google Chrome'; do sleep 0.5; done
+# Graceful quit — let Chrome save session state and release locks
+osascript -e 'tell application "Google Chrome" to quit' 2>/dev/null
+for i in $(seq 1 10); do
+  pgrep -qf 'Google Chrome' || break
+  sleep 0.5
+done
+# Force kill only if Chrome refused to exit (e.g. hung tab)
+if pgrep -qf 'Google Chrome'; then
+  killall -9 'Google Chrome' 2>/dev/null
+  while pgrep -qf 'Google Chrome'; do sleep 0.5; done
+fi
 
 # Launch Chrome with debug port and claude profile
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
