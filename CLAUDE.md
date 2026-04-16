@@ -1,5 +1,8 @@
 # truffledog-website
 
+## Firebase Auth + Chrome (cross-project reference)
+- `signInWithRedirect` breaks in Chrome due to third-party cookie restrictions. Fix: set `authDomain = window.location.host` in the Firebase config (prod only) so the redirect is same-origin. Also call `getRedirectResult(auth)` on init. Without this, users land back on the login screen after selecting their Google account. Reference implementations: `ic-tom` and `burradoo-spend`.
+
 ## Shell config lives here (`z*` files)
 `zshrc`, `zshrc-remote`, `zshenv`, `zshenv-remote` are the user's shell config. They are hosted on the website and fetched by the user's `~/.zshrc` / `~/.zshenv` on other machines at shell startup.
 
