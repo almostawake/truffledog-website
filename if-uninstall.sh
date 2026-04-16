@@ -1,10 +1,10 @@
 #!/bin/bash
 #
 # appsvelte uninstaller
-# https://truffledog.au/uninstall.sh
+# https://truffledog.au/if-uninstall.sh
 #
 # Usage:
-#   curl -fsSL https://truffledog.au/uninstall.sh | bash
+#   curl -fsSL https://truffledog.au/if-uninstall.sh | bash
 #
 set -e
 

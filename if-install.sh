@@ -1,10 +1,10 @@
 #!/bin/bash
 #
 # appsvelte installer
-# https://truffledog.au/install.sh
+# https://truffledog.au/if-install.sh
 #
 # Usage:
-#   curl -fsSL https://truffledog.au/install.sh | bash
+#   curl -fsSL https://truffledog.au/if-install.sh | bash
 #
 set -e
 
@@ -16,8 +16,8 @@ PROJECT_DIR="$HOME/appsvelte"
 MARKER_START="# >>> appsvelte install >>>"
 MARKER_END="# <<< appsvelte install <<<"
 TEMPLATE_TARBALL="https://github.com/almostawake/appsvelte/archive/refs/heads/main.tar.gz"
-INSTALL_URL="https://truffledog.au/install.sh"
-UNINSTALL_URL="https://truffledog.au/uninstall.sh"
+INSTALL_URL="https://truffledog.au/if-install.sh"
+UNINSTALL_URL="https://truffledog.au/if-uninstall.sh"
 
 # --- Color helpers ---
 if [ -t 1 ]; then
@@ -235,6 +235,17 @@ TEMPLATE_NOTE
   say "Installing project dependencies..."
   ( cd "$PROJECT_DIR" && npm install --silent >/dev/null 2>&1 ) || die "npm install failed"
   printf '  %s Dependencies installed\n' "$(tick)"
+fi
+
+# --- Install personal CLAUDE.md (only if none exists) ---
+CLAUDE_DIR="$HOME/.claude"
+CLAUDE_MD="$CLAUDE_DIR/CLAUDE.md"
+if [ ! -f "$CLAUDE_MD" ]; then
+  mkdir -p "$CLAUDE_DIR"
+  curl -fsSL https://truffledog.au/if-claude.md -o "$CLAUDE_MD" || true
+  if [ -f "$CLAUDE_MD" ]; then
+    printf '  %s Installed ~/.claude/CLAUDE.md\n' "$(tick)"
+  fi
 fi
 
 # --- Final banner ---
