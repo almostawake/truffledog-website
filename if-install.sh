@@ -74,9 +74,6 @@ if command -v java >/dev/null 2>&1; then
   fi
 fi
 
-have_firebase=false
-command -v firebase >/dev/null 2>&1 && have_firebase=true
-
 have_claude=false
 command -v claude >/dev/null 2>&1 && have_claude=true
 
@@ -111,7 +108,6 @@ print_item() {
 
 print_item "Node.js 22"        "$have_node22"   "→ ~/.appsvelte/node/"
 print_item "OpenJDK 21 (JRE)"  "$have_java21"     "→ ~/.appsvelte/java/"
-print_item "firebase-tools"    "$have_firebase" "→ via npm"
 print_item "Claude Code CLI"   "$have_claude"   "→ via npm"
 if [ "$OS" = "darwin" ]; then
   if $have_chrome; then
@@ -133,7 +129,7 @@ To uninstall later:  curl -fsSL $UNINSTALL_URL | bash
 NOTE
 
 # --- Prompt 1: proceed with deps install? ---
-if $have_node22 && $have_java21 && $have_firebase && $have_claude; then
+if $have_node22 && $have_java21 && $have_claude; then
   say "All dependencies already installed."
 else
   if ! prompt_yn "Do you wish to proceed?" "Y"; then
@@ -204,14 +200,6 @@ if ! $have_node22 || ! $have_java21; then
     } >> "$zprofile"
     printf '  %s Updated ~/.zprofile\n' "$(tick)"
   fi
-fi
-
-# --- Install firebase-tools ---
-if ! $have_firebase; then
-  say ""
-  say "Installing firebase-tools..."
-  npm install -g firebase-tools --silent >/dev/null 2>&1 || die "firebase-tools install failed"
-  printf '  %s firebase-tools %s\n' "$(tick)" "$(firebase --version 2>/dev/null || echo installed)"
 fi
 
 # --- Install Claude Code CLI ---
