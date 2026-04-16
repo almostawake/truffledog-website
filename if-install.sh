@@ -83,6 +83,12 @@ command -v claude >/dev/null 2>&1 && have_claude=true
 have_project=false
 [ -d "$PROJECT_DIR" ] && have_project=true
 
+have_chrome_app=false
+[ -d "/Applications/Chrome with Claude Code.app" ] && have_chrome_app=true
+
+have_chrome=false
+[ -d "/Applications/Google Chrome.app" ] && have_chrome=true
+
 # --- Banner ---
 cat <<BANNER
 
@@ -107,6 +113,13 @@ print_item "Node.js 22"        "$have_node22"   "→ ~/.appsvelte/node/"
 print_item "OpenJDK 21 (JRE)"  "$have_java21"     "→ ~/.appsvelte/java/"
 print_item "firebase-tools"    "$have_firebase" "→ via npm"
 print_item "Claude Code CLI"   "$have_claude"   "→ via npm"
+if [ "$OS" = "darwin" ]; then
+  if $have_chrome; then
+    print_item "Chrome with Claude Code"  "$have_chrome_app"  "→ /Applications/"
+  else
+    printf '  %s  %-28s %s\n' "$(dot)" "Chrome with Claude Code" "$(gray 'skipped — Chrome not installed')"
+  fi
+fi
 
 cat <<NOTE
 
@@ -236,6 +249,128 @@ TEMPLATE_NOTE
   ( cd "$PROJECT_DIR" && npm install --silent >/dev/null 2>&1 ) || die "npm install failed"
   printf '  %s Dependencies installed\n' "$(tick)"
 fi
+
+# ---------------------------------------------------------------------------
+# --- Chrome with Claude Code .app (macOS only) ---
+# ---------------------------------------------------------------------------
+# DO NOT use osacompile to build this app — it creates an applet binary with
+# an embedded resource-fork icon that can't be overridden, and macOS may run
+# it under Rosetta on Apple Silicon which tanks performance system-wide.
+# Instead we build the .app bundle manually: a shell script executable,
+# a hand-written Info.plist with LSRequiresNativeExecution, and Chrome's
+# own .icns copied into Resources.
+# ---------------------------------------------------------------------------
+if [ "$OS" = "darwin" ] && $have_chrome; then
+  CHROME_APP="/Applications/Chrome with Claude Code.app"
+  CHROME_PROFILE="$HOME/chrome-claude-profile"
+  CHROME_DEFAULT="$HOME/Library/Application Support/Google/Chrome"
+
+  # --- Move Chrome data dir on first run ---
+  # If chrome-claude-profile already exists, the user has been through this
+  # setup before (either by us or manually). Leave it alone.
+  # If it does NOT exist, this is first time — move the default Chrome data
+  # dir so the user keeps all their bookmarks, sessions, logins, extensions.
+  if [ ! -d "$CHROME_PROFILE" ]; then
+    say ""
+    say "Setting up Chrome profile for Claude Code..."
+    # Kill Chrome if running — can't move its data dir while it has a lock
+    killall -9 "Google Chrome" 2>/dev/null
+    while pgrep -qf "Google Chrome"; do sleep 0.5; done
+    if [ -d "$CHROME_DEFAULT" ]; then
+      mv "$CHROME_DEFAULT" "$CHROME_PROFILE"
+      ln -s "$CHROME_PROFILE" "$CHROME_DEFAULT"
+      printf '  %s Moved Chrome profile to %s\n' "$(tick)" "$CHROME_PROFILE"
+    else
+      # No existing Chrome data — create empty profile dir, Chrome will populate on first launch
+      mkdir -p "$CHROME_PROFILE"
+      printf '  %s Created new Chrome profile at %s\n' "$(tick)" "$CHROME_PROFILE"
+    fi
+  fi
+
+  # --- Ensure symlink exists (handles reinstall where profile exists but symlink was lost) ---
+  if [ -d "$CHROME_PROFILE" ] && [ ! -L "$CHROME_DEFAULT" ]; then
+    # Default dir is a real directory (not a symlink) AND chrome-claude-profile exists
+    # This means the user has both — don't clobber. Only create symlink if default is missing.
+    if [ ! -d "$CHROME_DEFAULT" ]; then
+      ln -s "$CHROME_PROFILE" "$CHROME_DEFAULT"
+    fi
+  fi
+
+  # --- Create/recreate the .app (always, so flag updates take effect on reinstall) ---
+  say ""
+  say "Installing Chrome with Claude Code app..."
+  rm -rf "$CHROME_APP"
+
+  mkdir -p "$CHROME_APP/Contents/MacOS"
+  mkdir -p "$CHROME_APP/Contents/Resources"
+
+  # Icon — use Chrome's own
+  cp "/Applications/Google Chrome.app/Contents/Resources/app.icns" \
+     "$CHROME_APP/Contents/Resources/app.icns" 2>/dev/null || true
+
+  # Info.plist
+  cat > "$CHROME_APP/Contents/Info.plist" << 'CHROMEPLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>Chrome with Claude Code</string>
+  <key>CFBundleDisplayName</key>
+  <string>Chrome with Claude Code</string>
+  <key>CFBundleExecutable</key>
+  <string>Chrome with Claude Code</string>
+  <key>CFBundleIconFile</key>
+  <string>app</string>
+  <key>CFBundleIconName</key>
+  <string>app</string>
+  <key>CFBundleIdentifier</key>
+  <string>au.truffledog.chrome-claude-code</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleVersion</key>
+  <string>1.0</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>10.15</string>
+  <key>LSRequiresNativeExecution</key>
+  <true/>
+  <key>LSArchitecturePriority</key>
+  <array>
+    <string>arm64</string>
+  </array>
+</dict>
+</plist>
+CHROMEPLIST
+
+  # Launcher script
+  cat > "$CHROME_APP/Contents/MacOS/Chrome with Claude Code" << 'CHROMELAUNCH'
+#!/bin/bash
+# Kill existing Chrome instances
+killall -9 'Google Chrome' 2>/dev/null
+while pgrep -qf 'Google Chrome'; do sleep 0.5; done
+
+# Launch Chrome with debug port and claude profile
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+  --remote-debugging-port=9222 \
+  --silent-debugger-extension-api \
+  --user-data-dir="$HOME/chrome-claude-profile" &>/dev/null &
+
+# Wait for Chrome to be ready and write DevToolsActivePort
+for i in $(seq 1 20); do
+  sleep 0.5
+  curl -s http://localhost:9222/json/version >/dev/null 2>&1 && break
+done
+mkdir -p "$HOME/Library/Application Support/Google/Chrome"
+wspath=$(curl -s http://localhost:9222/json/version | \
+  python3 -c "import sys,json; url=json.load(sys.stdin)['webSocketDebuggerUrl']; print(url.split('9222')[1])")
+printf '9222\n'"${wspath}" > "$HOME/Library/Application Support/Google/Chrome/DevToolsActivePort"
+CHROMELAUNCH
+
+  chmod +x "$CHROME_APP/Contents/MacOS/Chrome with Claude Code"
+  touch "$CHROME_APP"
+  printf '  %s Installed %s\n' "$(tick)" "Chrome with Claude Code.app"
+fi
+
 
 # --- Install personal CLAUDE.md (only if none exists) ---
 CLAUDE_DIR="$HOME/.claude"

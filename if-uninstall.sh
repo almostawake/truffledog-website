@@ -10,6 +10,9 @@ set -e
 
 APPSVELTE_HOME="$HOME/.appsvelte"
 PROJECT_DIR="$HOME/appsvelte"
+CHROME_APP="/Applications/Chrome with Claude Code.app"
+CHROME_PROFILE="$HOME/chrome-claude-profile"
+CHROME_DEFAULT="$HOME/Library/Application Support/Google/Chrome"
 MARKER_START="# >>> appsvelte install >>>"
 MARKER_END="# <<< appsvelte install <<<"
 ZPROFILE="$HOME/.zprofile"
@@ -43,10 +46,11 @@ BANNER
 [ -d "$APPSVELTE_HOME" ] && printf '  • %s  (Node, Java, tools, secrets)\n' "$APPSVELTE_HOME"
 [ -f "$ZPROFILE" ] && grep -q "$MARKER_START" "$ZPROFILE" 2>/dev/null && \
   printf '  • marker block in %s\n' "$ZPROFILE"
+[ -d "$CHROME_APP" ] && printf '  • %s\n' "$CHROME_APP"
 
 echo ""
 
-if [ ! -d "$APPSVELTE_HOME" ] && { [ ! -f "$ZPROFILE" ] || ! grep -q "$MARKER_START" "$ZPROFILE" 2>/dev/null; }; then
+if [ ! -d "$APPSVELTE_HOME" ] && [ ! -d "$CHROME_APP" ] && { [ ! -f "$ZPROFILE" ] || ! grep -q "$MARKER_START" "$ZPROFILE" 2>/dev/null; }; then
   echo "Nothing to remove. appsvelte does not appear to be installed."
   exit 0
 fi
@@ -72,6 +76,21 @@ if [ -f "$ZPROFILE" ] && grep -q "$MARKER_START" "$ZPROFILE" 2>/dev/null; then
   ' "$ZPROFILE" > "$tmp"
   mv "$tmp" "$ZPROFILE"
   printf '  %s Cleaned ~/.zprofile\n' "$(tick)"
+fi
+
+# --- Remove Chrome with Claude Code app ---
+if [ -d "$CHROME_APP" ]; then
+  rm -rf "$CHROME_APP"
+  printf '  %s Removed %s\n' "$(tick)" "Chrome with Claude Code.app"
+fi
+
+# --- Restore Chrome default data dir (if we symlinked it) ---
+if [ -L "$CHROME_DEFAULT" ]; then
+  rm "$CHROME_DEFAULT"
+  if [ -d "$CHROME_PROFILE" ]; then
+    mv "$CHROME_PROFILE" "$CHROME_DEFAULT"
+    printf '  %s Restored Chrome data to default location\n' "$(tick)"
+  fi
 fi
 
 # --- Ask about project dir separately (default NO) ---
