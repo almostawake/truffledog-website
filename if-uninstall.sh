@@ -84,13 +84,14 @@ if [ -d "$CHROME_APP" ]; then
   printf '  %s Removed %s\n' "$(tick)" "Chrome with Claude Code.app"
 fi
 
-# --- Restore Chrome default data dir (if we symlinked it) ---
-if [ -L "$CHROME_DEFAULT" ]; then
-  rm "$CHROME_DEFAULT"
-  if [ -d "$CHROME_PROFILE" ]; then
-    mv "$CHROME_PROFILE" "$CHROME_DEFAULT"
-    printf '  %s Restored Chrome data to default location\n' "$(tick)"
-  fi
+# --- Restore Chrome default data dir (if we moved it) ---
+# Only move back if the profile dir exists AND the default location doesn't
+# (avoids clobbering a real default dir the user created since install)
+if [ -d "$CHROME_PROFILE" ] && [ ! -d "$CHROME_DEFAULT" ]; then
+  mv "$CHROME_PROFILE" "$CHROME_DEFAULT"
+  printf '  %s Restored Chrome data to default location\n' "$(tick)"
+elif [ -d "$CHROME_PROFILE" ]; then
+  say "  Note: $CHROME_PROFILE still exists (default Chrome dir also present, not moving)"
 fi
 
 # --- Ask about project dir separately (default NO) ---

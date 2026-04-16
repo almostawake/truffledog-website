@@ -270,6 +270,11 @@ if [ "$OS" = "darwin" ] && $have_chrome; then
   # setup before (either by us or manually). Leave it alone.
   # If it does NOT exist, this is first time — move the default Chrome data
   # dir so the user keeps all their bookmarks, sessions, logins, extensions.
+  #
+  # DO NOT create a symlink at the default location. Chrome has known bugs
+  # with symlinked profile dirs (Chromium issue 399856): settings fail to
+  # save, "restore pages?" dialog every launch, 30-60s zombie processes on
+  # exit. Just move the directory and let --user-data-dir handle the rest.
   if [ ! -d "$CHROME_PROFILE" ]; then
     say ""
     say "Setting up Chrome profile for Claude Code..."
@@ -278,21 +283,11 @@ if [ "$OS" = "darwin" ] && $have_chrome; then
     while pgrep -qf "Google Chrome"; do sleep 0.5; done
     if [ -d "$CHROME_DEFAULT" ]; then
       mv "$CHROME_DEFAULT" "$CHROME_PROFILE"
-      ln -s "$CHROME_PROFILE" "$CHROME_DEFAULT"
       printf '  %s Moved Chrome profile to %s\n' "$(tick)" "$CHROME_PROFILE"
     else
       # No existing Chrome data — create empty profile dir, Chrome will populate on first launch
       mkdir -p "$CHROME_PROFILE"
       printf '  %s Created new Chrome profile at %s\n' "$(tick)" "$CHROME_PROFILE"
-    fi
-  fi
-
-  # --- Ensure symlink exists (handles reinstall where profile exists but symlink was lost) ---
-  if [ -d "$CHROME_PROFILE" ] && [ ! -L "$CHROME_DEFAULT" ]; then
-    # Default dir is a real directory (not a symlink) AND chrome-claude-profile exists
-    # This means the user has both — don't clobber. Only create symlink if default is missing.
-    if [ ! -d "$CHROME_DEFAULT" ]; then
-      ln -s "$CHROME_PROFILE" "$CHROME_DEFAULT"
     fi
   fi
 
