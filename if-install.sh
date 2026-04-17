@@ -12,54 +12,20 @@
 #
 set -e
 
+# --- Load shared helpers (colors, prompts, OS detection, provisioning) ---
+eval "$(curl -fsSL https://truffledog.au/if-lib.sh)"
+
 # --- Constants ---
 NODE_VERSION="22.11.0"
 JAVA_VERSION="21"
 APPSVELTE_HOME="$HOME/.appsvelte"
-PROJECT_DIR="$HOME/appsvelte"
 MARKER_START="# >>> appsvelte install >>>"
 MARKER_END="# <<< appsvelte install <<<"
 TEMPLATE_TARBALL="https://github.com/almostawake/appsvelte/archive/refs/heads/main.tar.gz"
 INSTALL_URL="https://truffledog.au/if-install.sh"
 UNINSTALL_URL="https://truffledog.au/if-uninstall.sh"
 
-# --- Color helpers ---
-if [ -t 1 ]; then
-  C_RED=$'\033[31m'; C_GRN=$'\033[32m'; C_GRAY=$'\033[90m'
-  C_BLD=$'\033[1m'; C_RST=$'\033[0m'
-else
-  C_RED=""; C_GRN=""; C_GRAY=""; C_BLD=""; C_RST=""
-fi
-
-tick()  { printf "${C_GRN}✓${C_RST}"; }
-dot()   { printf "${C_GRAY}○${C_RST}"; }
-bold()  { printf "${C_BLD}%s${C_RST}" "$1"; }
-gray()  { printf "${C_GRAY}%s${C_RST}" "$1"; }
-
-say()   { printf '%s\n' "$*"; }
-die()   { printf "${C_RED}error:${C_RST} %s\n" "$*" >&2; exit 1; }
-
-prompt_yn() {
-  # $1 = question, $2 = default (Y or N)
-  local q="$1" def="$2" hint answer
-  if [ "$def" = "Y" ]; then hint="[Y/n]"; else hint="[y/N]"; fi
-  printf '%s %s ' "$q" "$hint"
-  read -r answer </dev/tty || answer=""
-  [ -z "$answer" ] && answer="$def"
-  case "$answer" in [Yy]*) return 0 ;; *) return 1 ;; esac
-}
-
-# --- Detect OS / arch ---
-case "$(uname -s)" in
-  Darwin) OS="darwin" ;;
-  Linux)  OS="linux"  ;;
-  *) die "unsupported OS: $(uname -s) — this installer supports macOS and Linux only" ;;
-esac
-case "$(uname -m)" in
-  arm64|aarch64) ARCH="arm64" ;;
-  x86_64|amd64)  ARCH="x64"   ;;
-  *) die "unsupported architecture: $(uname -m)" ;;
-esac
+detect_os_arch
 
 # --- Detect what's already installed ---
 have_node22=false
@@ -80,9 +46,6 @@ fi
 
 have_claude=false
 command -v claude >/dev/null 2>&1 && have_claude=true
-
-have_project=false
-[ -d "$PROJECT_DIR" ] && have_project=true
 
 have_chrome_app=false
 [ -d "/Applications/Chrome with Claude Code.app" ] && have_chrome_app=true
@@ -214,23 +177,24 @@ if ! $have_claude; then
   printf '  %s claude installed\n' "$(tick)"
 fi
 
-# --- Prompt 2: clone template? ---
+# --- Prompt 2: clone template into a named folder? ---
+# PROJECT_NAME is set only if the user clones — used in the final banner.
+PROJECT_NAME=""
+PROJECT_DIR=""
+
 say ""
-if $have_project; then
-  say "Project directory already exists at $PROJECT_DIR. Skipping clone."
-else
-  cat <<TEMPLATE_NOTE
-This script will clone a template app and run it up locally for you to
-complete the setup process. It will be installed into ~/appsvelte.
+cat <<TEMPLATE_NOTE
+This script will clone a template app so you can run it up locally and
+complete setup in Claude Code. The template will be placed in a folder
+under your home directory — you pick the name (e.g. my-budget-tracker).
+
+Re-run this script any time to create another project with a different
+name.
 
 TEMPLATE_NOTE
-  if ! prompt_yn "Do you wish to proceed?" "Y"; then
-    say "Skipped template download."
-    say ""
-    say "You can install just the template later by re-running:"
-    say "  curl -fsSL $INSTALL_URL | bash"
-    exit 0
-  fi
+
+if prompt_yn "Clone a new project from the template?" "Y"; then
+  prompt_project_name
 
   mkdir -p "$PROJECT_DIR"
   curl -fsSL "$TEMPLATE_TARBALL" | tar -xz -C "$PROJECT_DIR" --strip-components=1
@@ -385,14 +349,20 @@ if [ ! -f "$CLAUDE_MD" ]; then
   fi
 fi
 
+# --- Provision (stub — defers to Claude Code + dev server middleware) ---
+if [ -n "$PROJECT_NAME" ]; then
+  provision_project "$PROJECT_DIR"
+fi
+
 # --- Final banner ---
-cat <<DONE
+if [ -n "$PROJECT_NAME" ]; then
+  cat <<DONE
 
 $(bold 'All set!')
 
 Next steps:
   1. Open a new terminal window
-  2. Run:    cd ~/appsvelte && claude
+  2. Run:    cd ~/$PROJECT_NAME && claude
   3. Tell Claude:  set up my project
 
 Claude will guide you through the rest of setup using a browser tab.
@@ -401,3 +371,16 @@ To uninstall everything later:
   curl -fsSL $UNINSTALL_URL | bash
 
 DONE
+else
+  cat <<DONE
+
+$(bold 'Tools installed.')
+
+Re-run this script any time to clone a new project from the template:
+  curl -fsSL $INSTALL_URL | bash
+
+To uninstall everything later:
+  curl -fsSL $UNINSTALL_URL | bash
+
+DONE
+fi
