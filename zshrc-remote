@@ -4,7 +4,7 @@
 # if-check.sh, if-claude.md), bump ZSHRC_VERSION below by 1.
 # Shows in the user's prompt as [v38] etc. — their signal that the
 # push went live.
-ZSHRC_VERSION="42"
+ZSHRC_VERSION="43"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"

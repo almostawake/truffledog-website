@@ -19,6 +19,7 @@ eval "$(curl -fsSL https://truffledog.au/if-lib.sh)"
 NODE_VERSION="22.11.0"
 JAVA_VERSION="21"
 APPSVELTE_HOME="$HOME/.appsvelte"
+APPSVELTE_NPM_GLOBAL="$APPSVELTE_HOME/npm-global"
 MARKER_START="# >>> appsvelte install >>>"
 MARKER_END="# <<< appsvelte install <<<"
 TEMPLATE_TARBALL="https://github.com/almostawake/appsvelte/archive/refs/heads/main.tar.gz"
@@ -150,31 +151,51 @@ if ! $have_java21; then
 fi
 
 # --- Update .zprofile (idempotent via marker block) ---
-if ! $have_node22 || ! $have_java21; then
-  zprofile="$HOME/.zprofile"
-  if [ ! -f "$zprofile" ] || ! grep -q "$MARKER_START" "$zprofile" 2>/dev/null; then
-    if [ "$OS" = "darwin" ]; then
-      jh_value="\$HOME/.appsvelte/java/Contents/Home"
-    else
-      jh_value="\$HOME/.appsvelte/java"
-    fi
-    {
-      printf '\n%s\n' "$MARKER_START"
-      printf 'export PATH="$HOME/.appsvelte/node/bin:$PATH"\n'
-      printf 'export JAVA_HOME="%s"\n' "$jh_value"
-      printf 'export PATH="$JAVA_HOME/bin:$PATH"\n'
-      printf '%s\n' "$MARKER_END"
-    } >> "$zprofile"
-    printf '  %s Updated ~/.zprofile\n' "$(tick)"
+# Always written — the npm-global bin entry is needed whether or not we
+# installed Node, because we install globals there regardless.
+zprofile="$HOME/.zprofile"
+if [ ! -f "$zprofile" ] || ! grep -q "$MARKER_START" "$zprofile" 2>/dev/null; then
+  if [ "$OS" = "darwin" ]; then
+    jh_value="\$HOME/.appsvelte/java/Contents/Home"
+  else
+    jh_value="\$HOME/.appsvelte/java"
   fi
+  {
+    printf '\n%s\n' "$MARKER_START"
+    printf 'export PATH="$HOME/.appsvelte/node/bin:$PATH"\n'
+    printf 'export PATH="$HOME/.appsvelte/npm-global/bin:$PATH"\n'
+    printf 'export JAVA_HOME="%s"\n' "$jh_value"
+    printf 'export PATH="$JAVA_HOME/bin:$PATH"\n'
+    printf '%s\n' "$MARKER_END"
+  } >> "$zprofile"
+  printf '  %s Updated ~/.zprofile\n' "$(tick)"
 fi
 
+# Export for the current script session so subsequent npm invocations
+# can find the installed binaries
+export PATH="$APPSVELTE_NPM_GLOBAL/bin:$PATH"
+
 # --- Install Claude Code CLI ---
+# Install into $APPSVELTE_NPM_GLOBAL rather than the system npm prefix so
+# we never need sudo. Works regardless of how the user's Node was installed
+# (nodejs.org .pkg uses /usr/local which needs sudo; nvm / our tarball / brew
+# use user-owned prefixes). Errors are NOT silenced — if npm fails, surface
+# the full error so we can diagnose.
 if ! $have_claude; then
   say ""
   say "Installing Claude Code CLI..."
-  npm install -g @anthropic-ai/claude-code --silent >/dev/null 2>&1 || die "claude install failed"
-  printf '  %s claude installed\n' "$(tick)"
+  mkdir -p "$APPSVELTE_NPM_GLOBAL"
+  npm_log="$(mktemp)"
+  if npm install --prefix "$APPSVELTE_NPM_GLOBAL" -g @anthropic-ai/claude-code 2>&1 | tee "$npm_log" >/dev/null; then
+    rm -f "$npm_log"
+    printf '  %s claude installed\n' "$(tick)"
+  else
+    say ""
+    say "npm install output:"
+    cat "$npm_log"
+    rm -f "$npm_log"
+    die "claude install failed — see npm output above"
+  fi
 fi
 
 # --- Prompt 2: clone template into a named folder? ---
