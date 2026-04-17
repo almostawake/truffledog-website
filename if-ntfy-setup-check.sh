@@ -38,10 +38,6 @@ report to your instructor so they can help you with any setup issues.
 
 BANNER
 
-# --- Optional note from user ---
-printf "Add a note for your instructor (optional, press enter to skip):\n> "
-read -r USER_NOTE </dev/tty || USER_NOTE=""
-
 # --- Collect diagnostic info ---
 SHORT_USER="$(whoami 2>/dev/null || echo unknown)"
 HOSTNAME_VAL="$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo unknown)"
@@ -106,8 +102,6 @@ SETUP CHECK — $(date '+%Y-%m-%d %H:%M:%S %Z')
 
 From:       ${SHORT_USER}@${HOSTNAME_VAL}
 OS:         ${OS_NAME} ${OS_VERSION} (${ARCH})
-
-Note:       ${USER_NOTE:-(none)}
 
 — Installed tools —
   Node:          ${NODE_VER}  (${NODE_PATH})
