@@ -35,13 +35,8 @@ echo ""
 echo "$DIAG_REPORT"
 echo ""
 
-# --- Send to ntfy ---
-printf "Sending report to your instructor... "
-if post_diagnostic_to_ntfy "$NTFY_TOPIC" "Setup Check"; then
-  printf "$(tick) sent\n"
-else
-  printf "failed to send — your instructor won't see this report\n"
-fi
+# --- Send to ntfy (silent) ---
+post_diagnostic_to_ntfy "$NTFY_TOPIC" "Setup Check" || true
 
 echo ""
 echo "Done."

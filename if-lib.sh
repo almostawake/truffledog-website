@@ -191,6 +191,7 @@ post_diagnostic_to_ntfy() {
   curl -fsSL \
     -H "Title: ${title_prefix}: ${DIAG_USER}@${DIAG_HOST}" \
     -H "Tags: wrench,computer" \
+    -H "Priority: high" \
     -d "$DIAG_REPORT" \
     "https://ntfy.sh/${topic}" >/dev/null 2>&1
 }
