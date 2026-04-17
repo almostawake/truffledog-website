@@ -6,6 +6,10 @@
 # Usage:
 #   curl -fsSL https://truffledog.au/if-uninstall.sh | bash
 #
+# CLAUDE EDIT NOTICE: When editing this file, bump ZSHRC_VERSION in
+# zshrc-remote by 1. Shows in user's prompt as [v38] etc. — their signal
+# that the push went live.
+#
 set -e
 
 APPSVELTE_HOME="$HOME/.appsvelte"

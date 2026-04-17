@@ -1,3 +1,7 @@
+<!-- CLAUDE EDIT NOTICE: When editing this file, bump ZSHRC_VERSION in
+     zshrc-remote by 1. Shows in user's prompt as [v38] etc. — their
+     signal that the push went live. -->
+
 # Personal instructions for Claude Code
 
 ## Writing Claude-read markdown

@@ -1,4 +1,8 @@
 #!/bin/zsh
+# CLAUDE EDIT NOTICE: When editing this file, bump ZSHRC_VERSION in
+# zshrc-remote by 1. Shows in user's prompt as [v38] etc. — their signal
+# that the push went live.
+#
 # zshenv: env vars only (sourced by every zsh invocation, including scripts).
 # PATH ordering lives in zshrc-remote because macOS /etc/zprofile runs
 # /usr/libexec/path_helper, which rebuilds PATH and clobbers any prepends
