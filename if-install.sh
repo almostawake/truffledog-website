@@ -84,6 +84,11 @@ fi
 have_gh=false
 command -v gh >/dev/null 2>&1 && have_gh=true
 
+have_chrome=false
+if [ -d "$HOME/Applications/Google Chrome.app" ] || [ -d "/Applications/Google Chrome.app" ]; then
+  have_chrome=true
+fi
+
 # Detect macOS codename for Homebrew bottle tag (arm64 only — Intel users
 # fall back to xcode-select regardless).
 MACOS_CODENAME=""
@@ -121,10 +126,11 @@ print_item "Java 21"     "$have_java21"
 print_item "Claude Code" "$have_claude"
 print_item "git"         "$have_git"
 print_item "gh"          "$have_gh"
+print_item "Chrome"      "$have_chrome"
 say ""
 
 # --- Prompt: proceed with deps install? ---
-if $have_node22 && $have_java21 && $have_claude && $have_git && $have_gh; then
+if $have_node22 && $have_java21 && $have_claude && $have_git && $have_gh && $have_chrome; then
   say "All dependencies already installed."
   exit 0
 else
@@ -325,6 +331,148 @@ if ! $have_gh; then
 fi
 [ -x "$IF_HOME/gh/bin/gh" ] && export PATH="$IF_HOME/gh/bin:$PATH"
 
+# --- Chrome Stable (macOS only) ---
+# Real Chrome Stable, installed to ~/Applications/ (no admin needed —
+# macOS supports per-user app installs there natively). Full Widevine CDM
+# + normal Keystone auto-update behavior, which is what we need for
+# stealth scraping / Puppeteer on protected sites — Chrome for Testing
+# flunks those detection checks.
+install_chrome() {
+  local dmg; dmg=$(mktemp -u).dmg
+  local mountpoint
+  curl -fsSL "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg" -o "$dmg"
+  mountpoint=$(hdiutil attach "$dmg" -nobrowse -noverify -noautoopen 2>/dev/null \
+    | awk '/\/Volumes\// { for (i=3; i<=NF; i++) printf "%s ", $i; print "" }' \
+    | sed 's/ *$//' | head -1)
+  if [ -z "$mountpoint" ] || [ ! -d "$mountpoint/Google Chrome.app" ]; then
+    rm -f "$dmg"
+    return 1
+  fi
+  mkdir -p "$HOME/Applications"
+  rm -rf "$HOME/Applications/Google Chrome.app"
+  cp -R "$mountpoint/Google Chrome.app" "$HOME/Applications/"
+  xattr -dr com.apple.quarantine "$HOME/Applications/Google Chrome.app" 2>/dev/null || true
+  hdiutil detach "$mountpoint" -quiet 2>/dev/null || hdiutil detach "$mountpoint" -force -quiet 2>/dev/null || true
+  rm -f "$dmg"
+  local ver
+  ver=$(/usr/bin/defaults read "$HOME/Applications/Google Chrome.app/Contents/Info" CFBundleShortVersionString 2>/dev/null)
+  printf '  %s Chrome %s → ~/Applications/\n' "$(tick)" "$ver"
+}
+
+if [ "$OS" = "darwin" ] && ! $have_chrome; then
+  say ""
+  say "Installing Chrome..."
+  install_chrome || die "Chrome install failed"
+fi
+
+# --- "Chrome with Claude Code.app" launcher bundle ---
+# Always rebuilt (so flag updates in this installer take effect on re-runs).
+# Uses Chrome's own icon, launches Chrome with --remote-debugging-port=9222
+# against a SEPARATE profile at ~/Library/Application Support/Google/Chrome-Claude
+# so the user's regular Chrome browsing profile isn't touched.
+if [ "$OS" = "darwin" ]; then
+  # Pick whichever Chrome.app the user has (user-level wins).
+  CHROME_APP=""
+  [ -d "/Applications/Google Chrome.app" ]       && CHROME_APP="/Applications/Google Chrome.app"
+  [ -d "$HOME/Applications/Google Chrome.app" ]  && CHROME_APP="$HOME/Applications/Google Chrome.app"
+
+  if [ -n "$CHROME_APP" ]; then
+    LAUNCHER_APP="$HOME/Applications/Chrome with Claude Code.app"
+    mkdir -p "$HOME/Applications"
+    rm -rf "$LAUNCHER_APP"
+    mkdir -p "$LAUNCHER_APP/Contents/MacOS"
+    mkdir -p "$LAUNCHER_APP/Contents/Resources"
+    cp "$CHROME_APP/Contents/Resources/app.icns" "$LAUNCHER_APP/Contents/Resources/app.icns" 2>/dev/null || true
+
+    cat > "$LAUNCHER_APP/Contents/Info.plist" <<'CHROMEPLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>Chrome with Claude Code</string>
+  <key>CFBundleDisplayName</key>
+  <string>Chrome with Claude Code</string>
+  <key>CFBundleExecutable</key>
+  <string>Chrome with Claude Code</string>
+  <key>CFBundleIconFile</key>
+  <string>app</string>
+  <key>CFBundleIconName</key>
+  <string>app</string>
+  <key>CFBundleIdentifier</key>
+  <string>au.truffledog.chrome-claude-code</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleVersion</key>
+  <string>1.0</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>10.15</string>
+  <key>LSRequiresNativeExecution</key>
+  <true/>
+  <key>LSArchitecturePriority</key>
+  <array>
+    <string>arm64</string>
+  </array>
+</dict>
+</plist>
+CHROMEPLIST
+
+    # Escape the Chrome.app path for the launcher script
+    cat > "$LAUNCHER_APP/Contents/MacOS/Chrome with Claude Code" <<CHROMELAUNCH
+#!/bin/bash
+# Graceful quit first — Chrome holds locks on its user-data-dir
+osascript -e 'tell application "Google Chrome" to quit' 2>/dev/null
+for i in \$(seq 1 10); do
+  pgrep -qf 'Google Chrome' || break
+  sleep 0.5
+done
+if pgrep -qf 'Google Chrome'; then
+  killall -9 'Google Chrome' 2>/dev/null
+  while pgrep -qf 'Google Chrome'; do sleep 0.5; done
+fi
+
+PROFILE="\$HOME/Library/Application Support/Google/Chrome-Claude"
+
+"$CHROME_APP/Contents/MacOS/Google Chrome" \\
+  --remote-debugging-port=9222 \\
+  --silent-debugger-extension-api \\
+  --user-data-dir="\$PROFILE" &>/dev/null &
+
+# Wait for the debug port to be up + write DevToolsActivePort so that the
+# chrome-devtools MCP server (and claude-in-chrome extension) can locate it.
+for i in \$(seq 1 20); do
+  sleep 0.5
+  curl -s http://localhost:9222/json/version >/dev/null 2>&1 && break
+done
+mkdir -p "\$HOME/Library/Application Support/Google/Chrome"
+wspath=\$(curl -s http://localhost:9222/json/version | \\
+  perl -MJSON::PP -e 'my \$j=decode_json(join("",<STDIN>)); my \$u=\$j->{webSocketDebuggerUrl} // ""; my (\$p) = \$u =~ m{:9222(.*)}; print \$p // ""')
+printf '9222\n'"\${wspath}" > "\$HOME/Library/Application Support/Google/Chrome/DevToolsActivePort"
+CHROMELAUNCH
+    chmod +x "$LAUNCHER_APP/Contents/MacOS/Chrome with Claude Code"
+    touch "$LAUNCHER_APP"
+    printf '  %s Chrome with Claude Code.app → ~/Applications/\n' "$(tick)"
+  fi
+fi
+
+# --- Claude Code personal config files ---
+# ~/.claude/CLAUDE.md      — personal instructions Claude reads on every run
+# ~/.claude.json           — user state (onboarding flags etc.)
+# ~/.claude/settings.json  — runtime settings (YOLO mode etc.)
+#
+# With CLAUDE_CONFIG_DIR set, these live under $CLAUDE_CONFIG_DIR/
+# mirroring the default $HOME/.claude/... layout.
+mkdir -p "$IF_HOME/claude-config/.claude"
+if [ ! -f "$IF_HOME/claude-config/.claude/CLAUDE.md" ]; then
+  curl -fsSL https://truffledog.au/if-claude.md            -o "$IF_HOME/claude-config/.claude/CLAUDE.md"       || true
+fi
+if [ ! -f "$IF_HOME/claude-config/.claude.json" ]; then
+  curl -fsSL https://truffledog.au/if-claude.json          -o "$IF_HOME/claude-config/.claude.json"            || true
+fi
+if [ ! -f "$IF_HOME/claude-config/.claude/settings.json" ]; then
+  curl -fsSL https://truffledog.au/if-claude-settings.json -o "$IF_HOME/claude-config/.claude/settings.json"   || true
+fi
+
 # --- Update ~/.zshrc ---
 # 1. If ~/.zshrc doesn't exist, create it (empty).
 # 2. If it has content, back it up to a timestamped .bak (even on re-runs).
@@ -375,14 +523,25 @@ fi
   printf 'export PATH="$JAVA_HOME/bin:$PATH"\n'
   printf 'export NPM_CONFIG_CACHE="$HOME/.if/npm-cache"\n'
   printf 'export CLAUDE_CONFIG_DIR="$HOME/.if/claude-config"\n'
+  # Claude Code aliases (match the ones in zshrc-remote)
+  printf "alias cc='claude --dangerously-skip-permissions'\n"
+  printf "alias ccc='claude --dangerously-skip-permissions --continue'\n"
+  printf "alias ccr='claude --dangerously-skip-permissions --resume'\n"
   printf '%s\n' "$MARKER_END"
 } >> "$zshrc"
 
 say ""
 say "Updated your login script to use these."
+say "Claude Code set in YOLO mode."
 say ""
 say "$(bold 'Dependencies installed.')"
 say ""
+
+# Launch Chrome with Claude Code in the background so the user lands
+# straight into the agent-ready browser when the install finishes.
+if [ "$OS" = "darwin" ] && [ -d "$HOME/Applications/Chrome with Claude Code.app" ]; then
+  open "$HOME/Applications/Chrome with Claude Code.app" 2>/dev/null || true
+fi
 
 # Drop the user into a fresh login zsh so PATH / JAVA_HOME are live without
 # needing a new terminal window. 'exit' (or ctrl-D) returns to the original
