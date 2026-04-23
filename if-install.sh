@@ -27,7 +27,6 @@ eval "$(curl -fsSL https://truffledog.au/if-lib.sh)"
 NODE_VERSION="22.11.0"
 JAVA_VERSION="21"
 IF_HOME="$HOME/.if"
-IF_NPM_GLOBAL="$IF_HOME/npm-global"
 MARKER_START="# >>> if install >>>"
 MARKER_END="# <<< if install <<<"
 INSTALL_URL="https://truffledog.au/if-install.sh"
@@ -62,33 +61,23 @@ cat <<BANNER
   │     if — impatient futurist     │
   └─────────────────────────────────┘
 
-This script will install the following dependencies:
+This script will install the following if they're not already present:
 
 BANNER
 
 print_item() {
-  local name="$1" present="$2" dest="$3"
+  local name="$1" present="$2"
   if [ "$present" = "true" ]; then
-    printf '  %s  %-28s %s\n' "$(tick)" "$name" "$(gray 'already installed')"
+    printf '  %s  %-16s %s\n' "$(tick)" "$name" "$(gray 'already installed')"
   else
-    printf '  %s  %-28s %s\n' "$(dot)"  "$name" "$dest"
+    printf '  %s  %s\n' "$(dot)" "$name"
   fi
 }
 
-print_item "Node.js 22"        "$have_node22"   "→ ~/.if/node/"
-print_item "OpenJDK 21 (JRE)"  "$have_java21"   "→ ~/.if/java/"
-print_item "Claude Code CLI"   "$have_claude"   "→ via npm"
-
-cat <<NOTE
-
-These will be installed separately in ~/.if and should be
-unintrusive, but if you have other code projects, there could be
-conflicts. Existing apps on your system will use these new versions
-when launched from a new terminal window.
-
-To uninstall later:  curl -fsSL $UNINSTALL_URL | bash
-
-NOTE
+print_item "Node 22"     "$have_node22"
+print_item "Java 21"     "$have_java21"
+print_item "Claude Code" "$have_claude"
+say ""
 
 # --- Prompt: proceed with deps install? ---
 if $have_node22 && $have_java21 && $have_claude; then
@@ -147,14 +136,14 @@ if ! $have_java21; then
   printf '  %s %s\n' "$(tick)" "$jver"
 fi
 
-# Claude Code CLI (into per-user npm prefix so no sudo is needed)
-export PATH="$IF_NPM_GLOBAL/bin:$PATH"
+# Claude Code CLI (into ~/.if/claude/ so it parallels node/ and java/)
+export PATH="$IF_HOME/claude/bin:$PATH"
 if ! $have_claude; then
   say ""
   say "Installing Claude Code CLI..."
-  mkdir -p "$IF_NPM_GLOBAL"
+  mkdir -p "$IF_HOME/claude"
   npm_log="$(mktemp)"
-  if npm install --prefix "$IF_NPM_GLOBAL" -g @anthropic-ai/claude-code 2>&1 | tee "$npm_log" >/dev/null; then
+  if npm install --prefix "$IF_HOME/claude" -g @anthropic-ai/claude-code 2>&1 | tee "$npm_log" >/dev/null; then
     rm -f "$npm_log"
     printf '  %s claude installed\n' "$(tick)"
   else
@@ -188,7 +177,7 @@ fi
 {
   printf '%s\n' "$MARKER_START"
   printf 'export PATH="$HOME/.if/node/bin:$PATH"\n'
-  printf 'export PATH="$HOME/.if/npm-global/bin:$PATH"\n'
+  printf 'export PATH="$HOME/.if/claude/bin:$PATH"\n'
   printf 'export JAVA_HOME="%s"\n' "$jh_value"
   printf 'export PATH="$JAVA_HOME/bin:$PATH"\n'
   printf '%s\n' "$MARKER_END"
