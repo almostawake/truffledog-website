@@ -62,7 +62,24 @@ have_claude=false
 command -v claude >/dev/null 2>&1 && have_claude=true
 
 have_git=false
-command -v git >/dev/null 2>&1 && have_git=true
+git_path="$(command -v git 2>/dev/null || true)"
+if [ -n "$git_path" ]; then
+  case "$git_path" in
+    /usr/bin/git)
+      # macOS ships /usr/bin/git as a stub that triggers the CLT install
+      # dialog when invoked. It only resolves to a real git once Xcode
+      # Command Line Tools (or Xcode.app) is installed.
+      if xcode-select -p >/dev/null 2>&1; then
+        have_git=true
+      fi
+      ;;
+    *)
+      # git is from somewhere else (Homebrew, our ~/.if/git, asdf, etc.) —
+      # trust it.
+      have_git=true
+      ;;
+  esac
+fi
 
 have_gh=false
 command -v gh >/dev/null 2>&1 && have_gh=true
@@ -103,7 +120,7 @@ print_item "Node 22"     "$have_node22"
 print_item "Java 21"     "$have_java21"
 print_item "Claude Code" "$have_claude"
 print_item "git"         "$have_git"
-print_item "GitHub CLI"  "$have_gh"
+print_item "gh"          "$have_gh"
 say ""
 
 # --- Prompt: proceed with deps install? ---
