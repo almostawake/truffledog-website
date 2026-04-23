@@ -3,7 +3,7 @@
 # (zshrc-remote, if-install.sh, if-uninstall.sh, if-check.sh,
 # if-claude.md), bump ZSHRC_VERSION below by 1. Shows in the user's
 # prompt as [v38] etc. — their signal that the push went live.
-ZSHRC_VERSION="45"
+ZSHRC_VERSION="46"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
@@ -47,35 +47,6 @@ prepend_path "/Library/Developer/CommandLineTools/usr/bin"
 prepend_path "/opt/homebrew/opt/ruby/bin"
 
 export CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL=1
-
-# Node version selection from .nvmrc (resolves against installed nvm versions,
-# no nvm use/install — fast and non-interactive)
-if [ -f .nvmrc ]; then
-  NVMRC_CONTENT=$(cat .nvmrc)
-  CLEAN_VERSION=$(echo "$NVMRC_CONTENT" | sed 's/^v//' | sed 's/^lts\///')
-  if [ "$NVMRC_CONTENT" = "lts/*" ]; then
-    MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E '^v[0-9]+\.' | sed 's/^v//' | awk -F. '{if ($1 % 2 == 0) print}' | sort -V | tail -1)
-  elif echo "$NVMRC_CONTENT" | grep -q "^lts/"; then
-    case "$CLEAN_VERSION" in
-      "krypton")  MAJOR="24" ;;
-      "jod")      MAJOR="22" ;;
-      "iron")     MAJOR="20" ;;
-      "hydrogen") MAJOR="18" ;;
-      *)          MAJOR="" ;;
-    esac
-    if [ -n "$MAJOR" ]; then
-      MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${MAJOR}\." | sed 's/^v//' | sort -V | tail -1)
-    fi
-  else
-    DOT_COUNT=$(echo "$CLEAN_VERSION" | tr -cd '.' | wc -c)
-    if [ "$DOT_COUNT" -eq 2 ]; then
-      MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${CLEAN_VERSION}$" | sed 's/^v//')
-    else
-      MATCHED_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | grep -E "^v${CLEAN_VERSION}\." | sed 's/^v//' | sort -V | tail -1)
-    fi
-  fi
-  [ -n "$MATCHED_VERSION" ] && prepend_path "$NVM_DIR/versions/node/v$MATCHED_VERSION/bin"
-fi
 
 # Load pyenv automatically (only if installed)
 if [[ -d "$HOME/.pyenv/shims" ]]; then
@@ -145,3 +116,6 @@ c() {
   echo "  ccc   claude --dangerously-skip-permissions --continue"
   echo "  ccr   claude --dangerously-skip-permissions --resume"
 }
+
+# Auto-select node from .nvmrc if present
+[ -f .nvmrc ] && nvm use --silent
