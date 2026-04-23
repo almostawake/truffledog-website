@@ -227,7 +227,6 @@ fetch_bottle() {
 install_git_bottle() {
   local tag="$1"
   local stage; stage=$(mktemp -d)
-  say "  Downloading git + pcre2 + gettext bottles (arm64_${MACOS_CODENAME})..."
   fetch_bottle git     "$tag" "$stage" || { rm -rf "$stage"; return 1; }
   fetch_bottle pcre2   "$tag" "$stage" || { rm -rf "$stage"; return 1; }
   fetch_bottle gettext "$tag" "$stage" || { rm -rf "$stage"; return 1; }
@@ -311,8 +310,9 @@ install_gh() {
   url=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest \
     | perl -MJSON::PP -e "
         my \$j = decode_json(join('', <STDIN>));
-        for my \$a (\@{\$j->{assets}}) {
-          if (\$a->{name} =~ /^gh_.*_macOS_${arch_gh}\\.zip\$/) {
+        for my \$a (@{\$j->{assets}}) {
+          next unless ref(\$a) eq 'HASH';
+          if ((\$a->{name} // '') =~ /^gh_.*_macOS_${arch_gh}\\.zip\$/) {
             print \$a->{browser_download_url};
             last;
           }
