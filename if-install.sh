@@ -61,6 +61,24 @@ fi
 have_claude=false
 command -v claude >/dev/null 2>&1 && have_claude=true
 
+have_git=false
+command -v git >/dev/null 2>&1 && have_git=true
+
+have_gh=false
+command -v gh >/dev/null 2>&1 && have_gh=true
+
+# Detect macOS codename for Homebrew bottle tag (arm64 only — Intel users
+# fall back to xcode-select regardless).
+MACOS_CODENAME=""
+if [ "$OS" = "darwin" ]; then
+  case "$(sw_vers -productVersion 2>/dev/null | cut -d. -f1)" in
+    14) MACOS_CODENAME="sonoma"  ;;
+    15) MACOS_CODENAME="sequoia" ;;
+    26) MACOS_CODENAME="tahoe"   ;;
+    *)  MACOS_CODENAME=""        ;;
+  esac
+fi
+
 # --- Banner ---
 cat <<BANNER
 
@@ -84,10 +102,12 @@ print_item() {
 print_item "Node 22"     "$have_node22"
 print_item "Java 21"     "$have_java21"
 print_item "Claude Code" "$have_claude"
+print_item "git"         "$have_git"
+print_item "GitHub CLI"  "$have_gh"
 say ""
 
 # --- Prompt: proceed with deps install? ---
-if $have_node22 && $have_java21 && $have_claude; then
+if $have_node22 && $have_java21 && $have_claude && $have_git && $have_gh; then
   say "All dependencies already installed."
   exit 0
 else
@@ -162,6 +182,143 @@ if ! $have_claude; then
   fi
 fi
 
+# --- git ---
+# ARM: fetch Homebrew bottles from ghcr.io, patch dylib paths, re-sign. ~64MB
+#      under ~/.if/git/. No admin, no Xcode CLT.
+# Intel: fall back to `xcode-select --install` GUI dialog (~2GB, no admin but
+#        requires one click + ~10min wait).
+#
+# The ARM path only works when we know the bottle tag for the current macOS
+# (MACOS_CODENAME is set). Unknown macOS → CLT fallback.
+
+# Fetch a single Homebrew bottle by name + tag + target staging dir.
+# Extracts the tarball (which contains <name>/<version>/...).
+fetch_bottle() {
+  local pkg="$1" tag="$2" stage="$3"
+  local json url token
+  json=$(curl -fsSL "https://formulae.brew.sh/api/formula/${pkg}.json") || return 1
+  url=$(printf '%s' "$json" | perl -MJSON::PP -e "
+    my \$j = decode_json(join('', <STDIN>));
+    my \$f = \$j->{bottle}{stable}{files}{'${tag}'};
+    print \$f->{url} if \$f;") || return 1
+  [ -z "$url" ] && return 1
+  token=$(curl -fsSL "https://ghcr.io/token?service=ghcr.io&scope=repository:homebrew/core/${pkg}:pull" \
+    | perl -MJSON::PP -e 'my $j = decode_json(join("",<STDIN>)); print $j->{token}') || return 1
+  curl -fsSL -H "Authorization: Bearer $token" "$url" | tar -xz -C "$stage" || return 1
+}
+
+install_git_bottle() {
+  local tag="$1"
+  local stage; stage=$(mktemp -d)
+  say "  Downloading git + pcre2 + gettext bottles (arm64_${MACOS_CODENAME})..."
+  fetch_bottle git     "$tag" "$stage" || { rm -rf "$stage"; return 1; }
+  fetch_bottle pcre2   "$tag" "$stage" || { rm -rf "$stage"; return 1; }
+  fetch_bottle gettext "$tag" "$stage" || { rm -rf "$stage"; return 1; }
+
+  local git_ver pcre2_ver gettext_ver
+  git_ver=$(ls "$stage/git" | head -1)
+  pcre2_ver=$(ls "$stage/pcre2" | head -1)
+  gettext_ver=$(ls "$stage/gettext" | head -1)
+
+  rm -rf "$IF_HOME/git"
+  mkdir -p "$IF_HOME/git/lib"
+  cp -R "$stage/git/$git_ver/." "$IF_HOME/git/"
+  cp "$stage/pcre2/$pcre2_ver/lib/libpcre2-8.0.dylib" "$IF_HOME/git/lib/"
+  cp "$stage/gettext/$gettext_ver/lib/libintl.8.dylib" "$IF_HOME/git/lib/"
+  chmod u+w "$IF_HOME/git/lib/"*.dylib
+
+  local new_pcre2="$IF_HOME/git/lib/libpcre2-8.0.dylib"
+  local new_intl="$IF_HOME/git/lib/libintl.8.dylib"
+  install_name_tool -id "$new_pcre2" "$new_pcre2" 2>/dev/null
+  install_name_tool -id "$new_intl"  "$new_intl" 2>/dev/null
+
+  local f
+  for f in $(find "$IF_HOME/git/bin" "$IF_HOME/git/libexec" -type f 2>/dev/null); do
+    file "$f" 2>/dev/null | grep -q "Mach-O" || continue
+    chmod u+w "$f"
+    install_name_tool \
+      -change "@@HOMEBREW_PREFIX@@/opt/pcre2/lib/libpcre2-8.0.dylib" "$new_pcre2" \
+      -change "@@HOMEBREW_PREFIX@@/opt/gettext/lib/libintl.8.dylib"  "$new_intl" \
+      "$f" 2>/dev/null
+    codesign -s - --force "$f" 2>/dev/null
+  done
+  codesign -s - --force "$new_pcre2" 2>/dev/null
+  codesign -s - --force "$new_intl" 2>/dev/null
+
+  rm -rf "$stage"
+  printf '  %s git %s\n' "$(tick)" "$("$IF_HOME/git/bin/git" --version 2>/dev/null | awk '{print $3}')"
+}
+
+install_git_xcode() {
+  if xcode-select -p >/dev/null 2>&1; then
+    printf '  %s git (via existing Command Line Tools)\n' "$(tick)"
+    return 0
+  fi
+  say "  Triggering macOS Command Line Tools install (needed for git)..."
+  say "  A dialog will appear — click Install and wait (~10 min, ~2GB)."
+  xcode-select --install 2>/dev/null || true
+  local waited=0
+  while ! xcode-select -p >/dev/null 2>&1; do
+    sleep 10
+    waited=$((waited+10))
+    [ $((waited % 60)) -eq 0 ] && say "  Still waiting for Command Line Tools... (${waited}s)"
+  done
+  printf '  %s git (via Command Line Tools)\n' "$(tick)"
+}
+
+if ! $have_git; then
+  say ""
+  say "Installing git..."
+  if [ "$OS" = "darwin" ] && [ "$ARCH" = "arm64" ] && [ -n "$MACOS_CODENAME" ]; then
+    if ! install_git_bottle "arm64_${MACOS_CODENAME}"; then
+      say "  Bottle install failed — falling back to Command Line Tools"
+      install_git_xcode
+    fi
+  else
+    install_git_xcode
+  fi
+fi
+# Put our bottle-git on PATH for this session if it's there.
+[ -x "$IF_HOME/git/bin/git" ] && export PATH="$IF_HOME/git/bin:$PATH"
+
+# --- GitHub CLI (gh) ---
+# Official release tarball (actually .zip on macOS) under ~/.if/gh/.
+install_gh() {
+  local arch_gh
+  case "$ARCH" in
+    arm64) arch_gh="arm64" ;;
+    x64)   arch_gh="amd64" ;;
+    *) die "gh: unsupported arch $ARCH" ;;
+  esac
+  local url
+  url=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest \
+    | perl -MJSON::PP -e "
+        my \$j = decode_json(join('', <STDIN>));
+        for my \$a (\@{\$j->{assets}}) {
+          if (\$a->{name} =~ /^gh_.*_macOS_${arch_gh}\\.zip\$/) {
+            print \$a->{browser_download_url};
+            last;
+          }
+        }")
+  [ -z "$url" ] && die "gh: couldn't find release asset"
+  local tmp_zip tmp_dir
+  tmp_zip=$(mktemp -u).zip
+  tmp_dir=$(mktemp -d)
+  curl -fsSL "$url" -o "$tmp_zip"
+  unzip -q "$tmp_zip" -d "$tmp_dir"
+  rm -rf "$IF_HOME/gh"
+  mv "$(ls -d "$tmp_dir"/*/)" "$IF_HOME/gh"
+  rm -rf "$tmp_zip" "$tmp_dir"
+  printf '  %s gh %s\n' "$(tick)" "$("$IF_HOME/gh/bin/gh" --version 2>/dev/null | head -1 | awk '{print $3}')"
+}
+
+if ! $have_gh; then
+  say ""
+  say "Installing GitHub CLI..."
+  install_gh
+fi
+[ -x "$IF_HOME/gh/bin/gh" ] && export PATH="$IF_HOME/gh/bin:$PATH"
+
 # --- Update ~/.zshrc ---
 # 1. If ~/.zshrc doesn't exist, create it (empty).
 # 2. If it has content, back it up to a timestamped .bak (even on re-runs).
@@ -202,6 +359,9 @@ fi
   printf '%s\n' "$MARKER_START"
   printf 'export PATH="$HOME/.if/node/bin:$PATH"\n'
   printf 'export PATH="$HOME/.if/claude/bin:$PATH"\n'
+  printf 'export PATH="$HOME/.if/gh/bin:$PATH"\n'
+  printf '[ -x "$HOME/.if/git/bin/git" ] && export PATH="$HOME/.if/git/bin:$PATH"\n'
+  printf '[ -d "$HOME/.if/git/libexec/git-core" ] && export GIT_EXEC_PATH="$HOME/.if/git/libexec/git-core"\n'
   printf 'export JAVA_HOME="%s"\n' "$jh_value"
   printf 'export PATH="$JAVA_HOME/bin:$PATH"\n'
   printf 'export NPM_CONFIG_CACHE="$HOME/.if/npm-cache"\n'
