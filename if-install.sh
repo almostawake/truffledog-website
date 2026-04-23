@@ -225,6 +225,12 @@ fetch_bottle() {
 }
 
 install_git_bottle() {
+  # Assembles a usable git from three Homebrew bottles without rewriting
+  # any binaries. Bottles reference their deps as "@@HOMEBREW_PREFIX@@/..."
+  # which dyld can't resolve — we set DYLD_FALLBACK_LIBRARY_PATH in the
+  # zshrc block to point at ~/.if/git/lib so dyld finds the libs by
+  # basename as a fallback. This avoids needing install_name_tool +
+  # codesign (both of which depend on Xcode CLT being installed).
   local tag="$1"
   local stage; stage=$(mktemp -d)
   fetch_bottle git     "$tag" "$stage" || { rm -rf "$stage"; return 1; }
@@ -241,28 +247,11 @@ install_git_bottle() {
   cp -R "$stage/git/$git_ver/." "$IF_HOME/git/"
   cp "$stage/pcre2/$pcre2_ver/lib/libpcre2-8.0.dylib" "$IF_HOME/git/lib/"
   cp "$stage/gettext/$gettext_ver/lib/libintl.8.dylib" "$IF_HOME/git/lib/"
-  chmod u+w "$IF_HOME/git/lib/"*.dylib
-
-  local new_pcre2="$IF_HOME/git/lib/libpcre2-8.0.dylib"
-  local new_intl="$IF_HOME/git/lib/libintl.8.dylib"
-  install_name_tool -id "$new_pcre2" "$new_pcre2" 2>/dev/null
-  install_name_tool -id "$new_intl"  "$new_intl" 2>/dev/null
-
-  local f
-  for f in $(find "$IF_HOME/git/bin" "$IF_HOME/git/libexec" -type f 2>/dev/null); do
-    file "$f" 2>/dev/null | grep -q "Mach-O" || continue
-    chmod u+w "$f"
-    install_name_tool \
-      -change "@@HOMEBREW_PREFIX@@/opt/pcre2/lib/libpcre2-8.0.dylib" "$new_pcre2" \
-      -change "@@HOMEBREW_PREFIX@@/opt/gettext/lib/libintl.8.dylib"  "$new_intl" \
-      "$f" 2>/dev/null
-    codesign -s - --force "$f" 2>/dev/null
-  done
-  codesign -s - --force "$new_pcre2" 2>/dev/null
-  codesign -s - --force "$new_intl" 2>/dev/null
 
   rm -rf "$stage"
-  printf '  %s git %s\n' "$(tick)" "$("$IF_HOME/git/bin/git" --version 2>/dev/null | awk '{print $3}')"
+  local ver
+  ver=$(DYLD_FALLBACK_LIBRARY_PATH="$IF_HOME/git/lib" "$IF_HOME/git/bin/git" --version 2>/dev/null | awk '{print $3}')
+  printf '  %s git %s\n' "$(tick)" "$ver"
 }
 
 install_git_xcode() {
@@ -379,6 +368,9 @@ fi
   printf 'export PATH="$HOME/.if/gh/bin:$PATH"\n'
   printf '[ -x "$HOME/.if/git/bin/git" ] && export PATH="$HOME/.if/git/bin:$PATH"\n'
   printf '[ -d "$HOME/.if/git/libexec/git-core" ] && export GIT_EXEC_PATH="$HOME/.if/git/libexec/git-core"\n'
+  # dyld falls back here when the bottle's baked-in @@HOMEBREW_PREFIX@@ paths
+  # fail to resolve. Preserves dyld's default fallbacks ($HOME/lib:/usr/local/lib:/usr/lib).
+  printf '[ -d "$HOME/.if/git/lib" ] && export DYLD_FALLBACK_LIBRARY_PATH="$HOME/.if/git/lib:$HOME/lib:/usr/local/lib:/usr/lib"\n'
   printf 'export JAVA_HOME="%s"\n' "$jh_value"
   printf 'export PATH="$JAVA_HOME/bin:$PATH"\n'
   printf 'export NPM_CONFIG_CACHE="$HOME/.if/npm-cache"\n'
