@@ -1,10 +1,9 @@
 #!/bin/zsh
 # CLAUDE EDIT NOTICE: When editing any file served from truffledog.au
-# (zshrc-remote, zshenv-remote, if-install.sh, if-uninstall.sh,
-# if-check.sh, if-claude.md), bump ZSHRC_VERSION below by 1.
-# Shows in the user's prompt as [v38] etc. — their signal that the
-# push went live.
-ZSHRC_VERSION="44"
+# (zshrc-remote, if-install.sh, if-uninstall.sh, if-check.sh,
+# if-claude.md), bump ZSHRC_VERSION below by 1. Shows in the user's
+# prompt as [v38] etc. — their signal that the push went live.
+ZSHRC_VERSION="45"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
@@ -14,11 +13,30 @@ ZSHRC_VERSION="44"
 bindkey -r '^T'
 bindkey -r '^B'
 
+# ---- Environment ----
+# Homebrew PATH/MANPATH/INFOPATH.
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# JAVA_HOME via macOS java_home — only set if a JDK actually resolves.
+# /usr/libexec/java_home always exists but prints an error to stderr when no
+# Java is installed.
+if _jh="$(/usr/libexec/java_home 2>/dev/null)"; then
+  export JAVA_HOME="$_jh"
+fi
+unset _jh
+
+# Google Cloud SDK
+[ -f "$HOME/google-cloud-sdk/path.zsh.inc" ] && . "$HOME/google-cloud-sdk/path.zsh.inc"
+
+# Node Version Manager (non-interactive safe)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" > /dev/null 2>&1
+
 # ---- PATH setup ----
-# Authoritative for interactive shells. macOS /etc/zprofile runs path_helper
-# before zshrc, so we assert ordering here (after path_helper) rather than in
-# zshenv-remote where prepends would be clobbered. Helpers guard on existence
-# so the same file is portable across machines without breaking PATH.
+# macOS /etc/zprofile runs path_helper before zshrc, so PATH ordering is
+# asserted here (after path_helper) rather than earlier where prepends would
+# be clobbered. Helpers guard on existence so the same file is portable
+# across machines without breaking PATH.
 prepend_path() { [[ -d "$1" ]] && export PATH="$1:$PATH"; }
 append_path()  { [[ -d "$1" ]] && export PATH="$PATH:$1"; }
 
