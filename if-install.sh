@@ -139,7 +139,7 @@ fi
 # Node
 if ! $have_node22; then
   say ""
-  say "Installing Node $NODE_VERSION..."
+  say "Installing Node 22..."
   mkdir -p "$IF_HOME/node"
   case "$OS-$ARCH" in
     darwin-arm64) plat="darwin-arm64"; ext="tar.gz" ;;
@@ -160,7 +160,7 @@ fi
 # Java
 if ! $have_java21; then
   say ""
-  say "Installing OpenJDK $JAVA_VERSION (JRE)..."
+  say "Installing Java 21..."
   mkdir -p "$IF_HOME/java"
   case "$OS-$ARCH" in
     darwin-arm64) jplat="mac/aarch64" ;;
@@ -184,7 +184,7 @@ fi
 export PATH="$IF_HOME/claude/bin:$PATH"
 if ! $have_claude; then
   say ""
-  say "Installing Claude Code CLI..."
+  say "Installing Claude Code..."
   mkdir -p "$IF_HOME/claude"
   npm_log="$(mktemp)"
   if npm install --prefix "$IF_HOME/claude" -g @anthropic-ai/claude-code 2>&1 | tee "$npm_log" >/dev/null; then
@@ -320,7 +320,7 @@ install_gh() {
 
 if ! $have_gh; then
   say ""
-  say "Installing GitHub CLI..."
+  say "Installing gh..."
   install_gh
 fi
 [ -x "$IF_HOME/gh/bin/gh" ] && export PATH="$IF_HOME/gh/bin:$PATH"
