@@ -32,6 +32,13 @@ MARKER_END="# <<< if install <<<"
 INSTALL_URL="https://truffledog.au/if-install.sh"
 UNINSTALL_URL="https://truffledog.au/if-uninstall.sh"
 
+# Keep user's ~/ clean: route npm cache and Claude state under ~/.if
+# Exported early so our own npm install uses the new cache location,
+# and re-exported via the zshrc block below for future sessions.
+mkdir -p "$IF_HOME/npm-cache" "$IF_HOME/claude-config"
+export NPM_CONFIG_CACHE="$IF_HOME/npm-cache"
+export CLAUDE_CONFIG_DIR="$IF_HOME/claude-config"
+
 detect_os_arch
 
 # --- Step 2: Detect what's already installed ---
@@ -155,17 +162,33 @@ if ! $have_claude; then
   fi
 fi
 
-# --- Update ~/.zshrc (back up existing; write a fresh one with our block) ---
-# Target audience runs this in a dedicated macOS user account, so we own the
-# shell startup file. If an existing ~/.zshrc is present we rename it to a
-# timestamped backup (keep whatever's there — don't try to merge); uninstall
-# can restore it.
+# --- Update ~/.zshrc ---
+# 1. If ~/.zshrc doesn't exist, create it (empty).
+# 2. If it has content, back it up to a timestamped .bak (even on re-runs).
+# 3. If our marker-fenced block is present, strip it — we'll re-append fresh
+#    (so new versions of this installer can change paths cleanly).
+# 4. Append the current block.
 zshrc="$HOME/.zshrc"
-if [ -e "$zshrc" ]; then
+
+if [ ! -e "$zshrc" ]; then
+  touch "$zshrc"
+fi
+
+if [ -s "$zshrc" ]; then
   ts=$(date +%Y%m%d-%H%M)
   backup="${zshrc}.${ts}.bak"
-  mv "$zshrc" "$backup"
-  printf '  %s Backed up existing ~/.zshrc → %s\n' "$(tick)" "$(basename "$backup")"
+  cp "$zshrc" "$backup"
+  printf '  %s Backed up ~/.zshrc → %s\n' "$(tick)" "$(basename "$backup")"
+fi
+
+if grep -qF "$MARKER_START" "$zshrc"; then
+  tmpf=$(mktemp)
+  awk -v s="$MARKER_START" -v e="$MARKER_END" '
+    $0 == s { skip=1; next }
+    $0 == e { skip=0; next }
+    !skip  { print }
+  ' "$zshrc" > "$tmpf"
+  mv "$tmpf" "$zshrc"
 fi
 
 if [ "$OS" = "darwin" ]; then
@@ -175,16 +198,27 @@ else
 fi
 
 {
+  [ -s "$zshrc" ] && printf '\n'
   printf '%s\n' "$MARKER_START"
   printf 'export PATH="$HOME/.if/node/bin:$PATH"\n'
   printf 'export PATH="$HOME/.if/claude/bin:$PATH"\n'
   printf 'export JAVA_HOME="%s"\n' "$jh_value"
   printf 'export PATH="$JAVA_HOME/bin:$PATH"\n'
+  printf 'export NPM_CONFIG_CACHE="$HOME/.if/npm-cache"\n'
+  printf 'export CLAUDE_CONFIG_DIR="$HOME/.if/claude-config"\n'
   printf '%s\n' "$MARKER_END"
-} > "$zshrc"
-printf '  %s Wrote ~/.zshrc\n' "$(tick)"
+} >> "$zshrc"
 
 say ""
-say "$(bold 'Dependencies installed.')"
-say "Open a new terminal to pick up the updated PATH (or run: source ~/.zshrc)"
+say "Updated your login script to use these."
 say ""
+say "$(bold 'Dependencies installed.')"
+say ""
+
+# Drop the user into a fresh login zsh so PATH / JAVA_HOME are live without
+# needing a new terminal window. 'exit' (or ctrl-D) returns to the original
+# shell. </dev/tty reconnects stdin to the terminal in case we're running
+# via `curl ... | bash` where stdin is a pipe.
+if [ -t 1 ] && [ -r /dev/tty ]; then
+  exec zsh -l </dev/tty
+fi
