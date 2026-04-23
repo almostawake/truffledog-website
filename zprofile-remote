@@ -1,4 +1,0 @@
-#!/bin/zsh
-# Login-shell config loaded via ~/.zprofile bootstrap (see zprofile in this repo).
-# Intentionally empty — add login-shell-only setup here (e.g. one-time env exports
-# that should run before interactive zshrc).
