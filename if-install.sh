@@ -233,10 +233,28 @@ _install_claude() {
   mkdir -p "$IF_HOME/claude-config/.claude"
   [ -f "$IF_HOME/claude-config/.claude/CLAUDE.md" ] || \
     curl -fsSL https://truffledog.au/if-claude.md -o "$IF_HOME/claude-config/.claude/CLAUDE.md"
-  [ -f "$IF_HOME/claude-config/.claude.json" ] || \
-    curl -fsSL https://truffledog.au/if-claude.json -o "$IF_HOME/claude-config/.claude.json"
   [ -f "$IF_HOME/claude-config/.claude/settings.json" ] || \
     curl -fsSL https://truffledog.au/if-claude-settings.json -o "$IF_HOME/claude-config/.claude/settings.json"
+
+  # .claude.json needs a theme injected based on current system appearance —
+  # dark theme for dark-mode users, light for light. Only runs on first
+  # install (guard below) so re-runs don't overwrite a theme the user
+  # later changed via Claude's /theme command.
+  local claude_json="$IF_HOME/claude-config/.claude.json"
+  if [ ! -f "$claude_json" ]; then
+    curl -fsSL https://truffledog.au/if-claude.json -o "$claude_json"
+    if [ "$OS" = "darwin" ]; then
+      local theme="light"
+      defaults read -g AppleInterfaceStyle 2>/dev/null | grep -q Dark && theme="dark"
+      local tmp; tmp=$(mktemp)
+      THEME="$theme" perl -MJSON::PP -e '
+        local $/;
+        my $j = decode_json(<STDIN>);
+        $j->{theme} = $ENV{THEME};
+        print JSON::PP->new->pretty->canonical->encode($j);
+      ' < "$claude_json" > "$tmp" && mv "$tmp" "$claude_json"
+    fi
+  fi
 }
 
 # Chrome Stable + Chrome with Claude Code.app launcher.
