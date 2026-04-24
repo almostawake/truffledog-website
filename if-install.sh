@@ -374,6 +374,41 @@ CHROMELAUNCH
   touch "$launcher_app"
 }
 
+# Dock helper: delete any :persistent-apps entry whose _CFURLString == $1.
+_dock_apps_remove_url() {
+  local target="$1"
+  local plist="$HOME/Library/Preferences/com.apple.dock.plist"
+  [ -f "$plist" ] || return 0
+  local i=0
+  while /usr/libexec/PlistBuddy -c "Print :persistent-apps:$i" "$plist" >/dev/null 2>&1; do
+    i=$((i+1))
+  done
+  i=$((i-1))
+  while [ $i -ge 0 ]; do
+    local u
+    u=$(/usr/libexec/PlistBuddy -c "Print :persistent-apps:$i:tile-data:file-data:_CFURLString" "$plist" 2>/dev/null || true)
+    if [ "$u" = "$target" ]; then
+      /usr/libexec/PlistBuddy -c "Delete :persistent-apps:$i" "$plist" 2>/dev/null || true
+    fi
+    i=$((i-1))
+  done
+  return 0
+}
+
+# Dock helper: prepend a new :persistent-apps entry at slot 0 for URL $1.
+# Used in reverse order so final slot assignment lines up left-to-right.
+_dock_apps_insert_at_zero() {
+  local url="$1"
+  local plist="$HOME/Library/Preferences/com.apple.dock.plist"
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0 dict" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data dict" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data:file-data dict" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data:file-data:_CFURLString string ${url}" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data:file-data:_CFURLStringType integer 15" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-type string file-tile" "$plist" 2>/dev/null || true
+  return 0
+}
+
 # Silent end-step: create ~/if workspace, point Finder there, pin to Dock,
 # enable "New Terminal at Folder" in Finder right-click.
 #
@@ -384,6 +419,18 @@ CHROMELAUNCH
 _configure_workspace() {
   [ "$OS" = "darwin" ] || return 0
   mkdir -p "$HOME/if"
+  mkdir -p "$IF_HOME/bin"
+
+  # shell.command is a one-click "new Terminal at ~/if" launcher, pinnable
+  # to the Dock. We use a .command file rather than Terminal.app itself
+  # because clicking Terminal.app's Dock icon while Terminal is already
+  # running does nothing (just focuses) — no new window, no cd.
+  cat > "$IF_HOME/bin/shell.command" <<'IFCMD'
+#!/bin/bash
+cd "$HOME/if" 2>/dev/null || cd "$HOME"
+exec /bin/zsh -l
+IFCMD
+  chmod +x "$IF_HOME/bin/shell.command"
 
   # (A) New Finder windows default to ~/if — covers right-click New Folder
   #     + right-click New Terminal at Folder workflow.
@@ -391,15 +438,27 @@ _configure_workspace() {
   defaults write com.apple.finder NewWindowTargetPath -string "file://$HOME/if/" 2>/dev/null || true
 
   # (B) Pin ~/if as a folder stack on the Dock (right side) for a visible anchor.
-  local url="file://$HOME/if/"
+  local url_folder="file://$HOME/if/"
   # Skip the add if an entry for ~/if is already present (re-runs stay idempotent).
   if ! /usr/libexec/PlistBuddy -c "Print :persistent-others" \
         "$HOME/Library/Preferences/com.apple.dock.plist" 2>/dev/null \
-        | grep -qF "$url"; then
+        | grep -qF "$url_folder"; then
     defaults write com.apple.dock persistent-others -array-add \
-      "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${url}</string><key>_CFURLStringType</key><integer>15</integer></dict></dict><key>tile-type</key><string>directory-tile</string></dict>" \
+      "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${url_folder}</string><key>_CFURLStringType</key><integer>15</integer></dict></dict><key>tile-type</key><string>directory-tile</string></dict>" \
       2>/dev/null || true
   fi
+
+  # (C) Dock left side, immediately right of Finder:
+  #       slot 0 — Chrome with Claude Code (the debug-port-enabled launcher)
+  #       slot 1 — shell.command (opens a new Terminal in ~/if)
+  #     Pattern: remove any existing matches, then prepend at slot 0 in
+  #     reverse order so final left-to-right ends up [chrome, shell, ...rest].
+  local url_chrome="file://$HOME/Applications/Chrome%20with%20Claude%20Code.app/"
+  local url_shell="file://$HOME/.if/bin/shell.command"
+  _dock_apps_remove_url "$url_chrome"
+  _dock_apps_remove_url "$url_shell"
+  _dock_apps_insert_at_zero "$url_shell"
+  _dock_apps_insert_at_zero "$url_chrome"
 
   # Enable "New Terminal at Folder" as a Finder right-click item.
   defaults write pbs NSServicesStatus -dict-add \

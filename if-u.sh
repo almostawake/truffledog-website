@@ -93,27 +93,32 @@ defaults delete com.apple.finder NewWindowTargetPath 2>/dev/null && \
   say "  cleared Finder NewWindowTargetPath" || true
 killall Finder 2>/dev/null || true
 
-# Remove the ~/if entry we added to Dock persistent-others (leaves other
-# dock entries alone). PlistBuddy iterates last→first so deletes don't
-# shift indices underneath us.
+# Remove Dock entries the installer added (right-side ~/if stack, left-side
+# Chrome launcher + shell.command). Leaves other dock entries alone.
+# PlistBuddy iterates last→first so deletes don't shift indices underneath us.
 DOCK_PLIST="$HOME/Library/Preferences/com.apple.dock.plist"
 if [ -f "$DOCK_PLIST" ]; then
-  TARGET_URL="file://$HOME/if/"
-  i=0
-  while /usr/libexec/PlistBuddy -c "Print :persistent-others:$i" "$DOCK_PLIST" >/dev/null 2>&1; do
-    i=$((i+1))
-  done
-  i=$((i-1))
-  removed=0
-  while [ $i -ge 0 ]; do
-    url=$(/usr/libexec/PlistBuddy -c "Print :persistent-others:$i:tile-data:file-data:_CFURLString" "$DOCK_PLIST" 2>/dev/null || true)
-    if [ "$url" = "$TARGET_URL" ]; then
-      /usr/libexec/PlistBuddy -c "Delete :persistent-others:$i" "$DOCK_PLIST" 2>/dev/null || true
-      removed=$((removed+1))
-    fi
+  scrub_dock_section() {
+    local section="$1" target="$2"
+    local i=0
+    while /usr/libexec/PlistBuddy -c "Print :${section}:$i" "$DOCK_PLIST" >/dev/null 2>&1; do
+      i=$((i+1))
+    done
     i=$((i-1))
-  done
-  [ $removed -gt 0 ] && say "  removed $removed Dock entry/entries for ~/if"
+    while [ $i -ge 0 ]; do
+      local url
+      url=$(/usr/libexec/PlistBuddy -c "Print :${section}:$i:tile-data:file-data:_CFURLString" "$DOCK_PLIST" 2>/dev/null || true)
+      if [ "$url" = "$target" ]; then
+        /usr/libexec/PlistBuddy -c "Delete :${section}:$i" "$DOCK_PLIST" 2>/dev/null || true
+        say "  removed Dock entry: $target"
+      fi
+      i=$((i-1))
+    done
+  }
+
+  scrub_dock_section "persistent-others" "file://$HOME/if/"
+  scrub_dock_section "persistent-apps"   "file://$HOME/Applications/Chrome%20with%20Claude%20Code.app/"
+  scrub_dock_section "persistent-apps"   "file://$HOME/.if/bin/shell.command"
 fi
 killall Dock 2>/dev/null || true
 
