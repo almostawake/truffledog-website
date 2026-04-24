@@ -73,6 +73,13 @@ for bak in "$HOME"/.zshrc.*.bak; do
   say "  removed $bak"
 done
 
+# Restore Terminal.app plist if the installer backed it up
+TBAK="$HOME/Library/Preferences/com.apple.Terminal.plist.bak"
+if [ -f "$TBAK" ]; then
+  mv "$TBAK" "$HOME/Library/Preferences/com.apple.Terminal.plist"
+  say "  restored com.apple.Terminal.plist from .bak"
+fi
+
 say ""
 say "Clean. Exit this shell (or open a new terminal) before re-running install,"
 say "so no stale PATH/env carries over."

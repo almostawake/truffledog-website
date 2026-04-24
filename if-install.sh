@@ -473,6 +473,30 @@ if [ ! -f "$IF_HOME/claude-config/.claude/settings.json" ]; then
   curl -fsSL https://truffledog.au/if-claude-settings.json -o "$IF_HOME/claude-config/.claude/settings.json"   || true
 fi
 
+# --- Terminal.app: enable "Use Option as Meta Key" ---
+# Claude Code's first-run onboarding would normally do this via its
+# /terminal-setup. We're pre-doing it so the onboarding flags in
+# if-claude.json (optionAsMetaKeyInstalled/shiftEnterKeyBindingInstalled)
+# are honest. Writes to the user's active Terminal profile.
+#
+# "Shift-enter for newline" is actually Option-Enter once this is set —
+# Terminal sends ESC+\r, which Claude reads as newline vs. plain \r = submit.
+if [ "$OS" = "darwin" ]; then
+  TERM_PLIST="$HOME/Library/Preferences/com.apple.Terminal.plist"
+  if [ -f "$TERM_PLIST" ]; then
+    # Back up so the user can revert if they want
+    if [ ! -f "${TERM_PLIST}.bak" ]; then
+      cp "$TERM_PLIST" "${TERM_PLIST}.bak"
+    fi
+    TERM_PROFILE=$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || echo "Basic")
+    # -insert fails if key exists, -replace fails if not — try insert, then replace
+    plutil -insert  "Window Settings.${TERM_PROFILE}.useOptionAsMetaKey" -bool YES "$TERM_PLIST" 2>/dev/null \
+      || plutil -replace "Window Settings.${TERM_PROFILE}.useOptionAsMetaKey" -bool YES "$TERM_PLIST" 2>/dev/null \
+      || true
+    printf '  %s Terminal.app: Option set as Meta on profile "%s"\n' "$(tick)" "$TERM_PROFILE"
+  fi
+fi
+
 # --- Update ~/.zshrc ---
 # 1. If ~/.zshrc doesn't exist, create it (empty).
 # 2. If it has content, back it up to a timestamped .bak (even on re-runs).
