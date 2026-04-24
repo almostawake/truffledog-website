@@ -73,6 +73,7 @@ paths=(
   "$HOME/.cache/gh"
   "$HOME/Applications/Google Chrome.app"
   "$HOME/Applications/Chrome with Claude Code.app"
+  "$HOME/Applications/IF Terminal.app"
   "$HOME/Library/Application Support/Google/Chrome-Claude"
   "$HOME/Library/Application Support/Google/Chrome"
   "/tmp/if-install.log"
@@ -132,6 +133,7 @@ if [ -f "$DOCK_PLIST" ]; then
 
   scrub_dock_section "persistent-others" "file://$HOME/if/"
   scrub_dock_section "persistent-apps"   "file://$HOME/Applications/Chrome%20with%20Claude%20Code.app/"
+  scrub_dock_section "persistent-apps"   "file://$HOME/Applications/IF%20Terminal.app/"
   scrub_dock_section "persistent-apps"   "file://$HOME/.if/bin/shell.command"
 fi
 killall Dock 2>/dev/null || true

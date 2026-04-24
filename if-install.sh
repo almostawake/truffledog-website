@@ -442,18 +442,70 @@ _dock_apps_insert_at_zero() {
 _configure_workspace() {
   [ "$OS" = "darwin" ] || return 0
   mkdir -p "$HOME/if"
-  mkdir -p "$IF_HOME/bin"
 
-  # shell.command is a one-click "new Terminal at ~/if" launcher, pinnable
-  # to the Dock. We use a .command file rather than Terminal.app itself
-  # because clicking Terminal.app's Dock icon while Terminal is already
-  # running does nothing (just focuses) — no new window, no cd.
-  cat > "$IF_HOME/bin/shell.command" <<'IFCMD'
+  # Build IF Terminal.app — a Dock-pinnable launcher that opens a new
+  # Terminal window cd'd to ~/if. Why a real .app bundle and not Terminal.app
+  # itself: clicking Terminal.app's Dock icon when Terminal is already
+  # running just focuses it (no new window). Why not a .command file: the
+  # Dock shows the generic script icon and uses the filename as label —
+  # unrecognizable. With our own .app we control both.
+  local if_term="$HOME/Applications/IF Terminal.app"
+  mkdir -p "$if_term/Contents/MacOS"
+  mkdir -p "$if_term/Contents/Resources"
+
+  # Copy Terminal.app's icon. Moved to /System/Applications in Catalina+;
+  # fall back to the pre-Catalina location, then to mdfind if neither is
+  # where we expect (e.g. future macOS layout changes).
+  local term_icns=""
+  for candidate in \
+      "/System/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns" \
+      "/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns" ; do
+    if [ -f "$candidate" ]; then term_icns="$candidate"; break; fi
+  done
+  if [ -z "$term_icns" ]; then
+    local term_app
+    term_app=$(mdfind "kMDItemCFBundleIdentifier == 'com.apple.Terminal'" 2>/dev/null | head -1)
+    [ -n "$term_app" ] && [ -f "$term_app/Contents/Resources/Terminal.icns" ] \
+      && term_icns="$term_app/Contents/Resources/Terminal.icns"
+  fi
+  [ -n "$term_icns" ] && cp "$term_icns" "$if_term/Contents/Resources/app.icns"
+
+  cat > "$if_term/Contents/Info.plist" <<'IFTERMPLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>IF Terminal</string>
+  <key>CFBundleDisplayName</key>
+  <string>IF Terminal</string>
+  <key>CFBundleExecutable</key>
+  <string>IF Terminal</string>
+  <key>CFBundleIconFile</key>
+  <string>app</string>
+  <key>CFBundleIdentifier</key>
+  <string>au.truffledog.if-terminal</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleVersion</key>
+  <string>1.0</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>10.15</string>
+</dict>
+</plist>
+IFTERMPLIST
+
+  # The "executable" just asks LaunchServices to open ~/if in Terminal.
+  # Terminal always creates a new window when asked to open a folder, and
+  # its shell starts cd'd to that folder. No AppleScript (no TCC prompts).
+  cat > "$if_term/Contents/MacOS/IF Terminal" <<'IFTERMEXEC'
 #!/bin/bash
-cd "$HOME/if" 2>/dev/null || cd "$HOME"
-exec /bin/zsh -l
-IFCMD
-  chmod +x "$IF_HOME/bin/shell.command"
+open -a Terminal.app "$HOME/if"
+IFTERMEXEC
+  chmod +x "$if_term/Contents/MacOS/IF Terminal"
+  # Bumping mtime forces LaunchServices/Dock to re-register the icon if we
+  # rebuilt the bundle after a prior install.
+  touch "$if_term"
 
   # === Pass 1: all `defaults write` calls ===
   # These go to cfprefsd's in-memory cache, not directly to disk.
@@ -493,14 +545,18 @@ IFCMD
 
   # (D) Dock left side, immediately right of Finder:
   #       slot 0 — Chrome with Claude Code (the debug-port-enabled launcher)
-  #       slot 1 — shell.command (opens a new Terminal in ~/if)
+  #       slot 1 — IF Terminal (opens a new Terminal in ~/if)
   #     Pattern: remove any existing matches, then prepend at slot 0 in
-  #     reverse order so final left-to-right ends up [chrome, shell, ...rest].
+  #     reverse order so final left-to-right ends up [chrome, term, ...rest].
+  #     Also remove the legacy shell.command URL so upgrading installs
+  #     don't leave a stale entry in the Dock.
   local url_chrome="file://$HOME/Applications/Chrome%20with%20Claude%20Code.app/"
-  local url_shell="file://$HOME/.if/bin/shell.command"
+  local url_term="file://$HOME/Applications/IF%20Terminal.app/"
+  local url_shell_legacy="file://$HOME/.if/bin/shell.command"
   _dock_apps_remove_url "$url_chrome"
-  _dock_apps_remove_url "$url_shell"
-  _dock_apps_insert_at_zero "$url_shell"
+  _dock_apps_remove_url "$url_term"
+  _dock_apps_remove_url "$url_shell_legacy"
+  _dock_apps_insert_at_zero "$url_term"
   _dock_apps_insert_at_zero "$url_chrome"
 
   # Apply changes.
