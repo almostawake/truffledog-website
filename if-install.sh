@@ -545,15 +545,17 @@ IFTERMEXEC
   #       - our "Claude Code at Folder" quick action (runs via Automator)
   #     Automator-sourced services use "(null)" as their bundle slot in the
   #     pbs.plist key; NSMessage is the workflow's runner method.
+  #     Value schema must match what macOS itself writes when the user
+  #     ticks the checkbox manually: a single `presentation_modes` dict
+  #     with four flags. Older examples on the web use top-level
+  #     `enabled_context_menu` / `enabled_services_menu` keys — those are
+  #     legacy and silently ignored on Sonoma+.
+  local svc_enable='{ "presentation_modes" = { "ContextMenu" = 1; "FinderPreview" = 1; "ServicesMenu" = 1; "TouchBar" = 0; }; }'
   defaults write pbs NSServicesStatus -dict-add \
-    "com.apple.Terminal - Open Terminal at Folder - openTerminal" \
-    '{ "enabled_context_menu" = 1; "enabled_services_menu" = 1;
-       "presentation_modes" = { "ContextMenu" = 1; "ServicesMenu" = 1; }; }' \
+    "com.apple.Terminal - Open Terminal at Folder - openTerminal" "$svc_enable" \
     2>/dev/null || true
   defaults write pbs NSServicesStatus -dict-add \
-    "(null) - Claude Code at Folder - runWorkflowAsService" \
-    '{ "enabled_context_menu" = 1; "enabled_services_menu" = 1;
-       "presentation_modes" = { "ContextMenu" = 1; "ServicesMenu" = 1; }; }' \
+    "(null) - Claude Code at Folder - runWorkflowAsService" "$svc_enable" \
     2>/dev/null || true
 
   # === cfprefsd flush ===
