@@ -529,9 +529,18 @@ IFTERMEXEC
   defaults write com.apple.finder NewWindowTarget -string "PfLo" 2>/dev/null || true
   defaults write com.apple.finder NewWindowTargetPath -string "file://$HOME/if/" 2>/dev/null || true
 
-  # (B) Enable "New Terminal at Folder" as a Finder right-click item.
+  # (B) Enable Finder right-click items:
+  #       - system "New Terminal at Folder" (Terminal.app service)
+  #       - our "Claude Code at Folder" quick action (runs via Automator)
+  #     Automator-sourced services use "(null)" as their bundle slot in the
+  #     pbs.plist key; NSMessage is the workflow's runner method.
   defaults write pbs NSServicesStatus -dict-add \
     "com.apple.Terminal - Open Terminal at Folder - openTerminal" \
+    '{ "enabled_context_menu" = 1; "enabled_services_menu" = 1;
+       "presentation_modes" = { "ContextMenu" = 1; "ServicesMenu" = 1; }; }' \
+    2>/dev/null || true
+  defaults write pbs NSServicesStatus -dict-add \
+    "(null) - Claude Code at Folder - runWorkflowAsService" \
     '{ "enabled_context_menu" = 1; "enabled_services_menu" = 1;
        "presentation_modes" = { "ContextMenu" = 1; "ServicesMenu" = 1; }; }' \
     2>/dev/null || true
@@ -774,5 +783,5 @@ fi
 # the newer 'open -a Terminal.app' trick left two windows on screen and
 # confused people). IF Terminal on the Dock is now the one entry point.
 echo ""
-echo "  • Quit Terminal (Cmd-Q), then click IF Terminal on your Dock"
+printf '  • Quit Terminal (Cmd-Q), then click %s on the left of the Dock\n' "$(bold 'IF Terminal')"
 echo ""
