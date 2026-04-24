@@ -12,7 +12,7 @@
 #   - SECTION 3: HTML templates
 #   - SECTION 4: Dispatcher — the only place that cares about flow.
 #
-# Usage: bash ~/_code/truffledog-website/if-tst-3.sh
+# Usage: bash ~/_code/truffledog-website/if-new.sh
 #
 set -e
 
@@ -32,12 +32,12 @@ eval "$(curl -fsSL https://truffledog.au/if-lib.sh)"
 #                      returns non-zero if server has closed
 #   http_send <body> — sends body as the response
 #   http_stop        — shuts down
-#   http_log <msg>   — append to /tmp/if-tst-3.log
+#   http_log <msg>   — append to /tmp/if-new.log
 #
 # Everything written to the server's stderr (bind errors, request traces)
-# also lands in /tmp/if-tst-3.log.
+# also lands in /tmp/if-new.log.
 
-HTTP_LOG="${HTTP_LOG:-/tmp/if-tst-3.log}"
+HTTP_LOG="${HTTP_LOG:-/tmp/if-new.log}"
 
 http_log() {
   printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*" >> "$HTTP_LOG"
@@ -419,7 +419,7 @@ build_fatal_html() {
 <style>body{font-family:system-ui;padding:3em;max-width:36em;margin:auto;color:#333;line-height:1.55}pre{background:#f4f4f4;padding:1em;border-radius:6px;overflow:auto}</style>
 </head><body>
 <h2 style="color:#b33">✗ $msg</h2>
-<p>Check /tmp/if-tst-3.log for details. You can close this tab.</p>
+<p>Check /tmp/if-new.log for details. You can close this tab.</p>
 </body></html>
 HTML
 }
