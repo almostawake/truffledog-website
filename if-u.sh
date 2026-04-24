@@ -52,6 +52,9 @@ paths=(
   "$HOME/.claude"
   "$HOME/.claude.json"
   "$HOME/.zshrc"
+  "$HOME/.local/state/gh"
+  "$HOME/.config/gh"
+  "$HOME/.cache/gh"
   "$HOME/Applications/Google Chrome.app"
   "$HOME/Applications/Chrome with Claude Code.app"
   "$HOME/Library/Application Support/Google/Chrome-Claude"
@@ -79,6 +82,19 @@ if [ -f "$TBAK" ]; then
   mv "$TBAK" "$HOME/Library/Preferences/com.apple.Terminal.plist"
   say "  restored com.apple.Terminal.plist from .bak"
 fi
+
+# Mop up now-empty parent dirs so the home folder matches a fresh account.
+# rmdir is safe — it only removes dirs that are actually empty (so if the
+# user has other stuff in ~/Applications or ~/.local/state, we leave it).
+for d in \
+    "$HOME/.local/state" \
+    "$HOME/.local" \
+    "$HOME/.config" \
+    "$HOME/.cache" \
+    "$HOME/Applications" \
+    "$HOME/Library/Application Support/Google" ; do
+  rmdir "$d" 2>/dev/null && say "  removed empty $d" || true
+done
 
 say ""
 say "Clean. Exit this shell (or open a new terminal) before re-running install,"
