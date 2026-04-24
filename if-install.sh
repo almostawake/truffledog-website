@@ -26,6 +26,14 @@ UNINSTALL_URL="https://truffledog.au/if-uninstall.sh"
 INSTALL_LOG="/tmp/if-install.log"
 : > "$INSTALL_LOG"
 
+# If the script exits abnormally (non-zero, Ctrl-C, etc.), surface the tail
+# of the install log so the user doesn't have to hunt for it.
+trap '_rc=$?; if [ $_rc -ne 0 ]; then
+  printf "\n\n--- last 40 lines of %s ---\n" "$INSTALL_LOG" >&2
+  tail -n 40 "$INSTALL_LOG" >&2
+  printf "\n(full log: %s)\n" "$INSTALL_LOG" >&2
+fi' EXIT
+
 # Keep ~/ clean: route npm cache and Claude state under ~/.if
 mkdir -p "$IF_HOME/npm-cache" "$IF_HOME/claude-config"
 export NPM_CONFIG_CACHE="$IF_HOME/npm-cache"
@@ -232,33 +240,67 @@ _install_claude() {
 
 # Chrome Stable + Chrome with Claude Code.app launcher.
 _install_chrome() {
-  [ "$OS" = "darwin" ] || return 0
+  # Verbose tracing for this step specifically — every command and every
+  # piece of output lands in $INSTALL_LOG. If the step hangs or fails,
+  # `tail -n 40 /tmp/if-install.log` will show exactly where.
+  _log() { echo "[$(date +%H:%M:%S)] chrome: $*"; }
+
+  _log "start _install_chrome"
+  [ "$OS" = "darwin" ] || { _log "not darwin, skipping"; return 0; }
 
   # 1. Install Chrome.app (skip if already present anywhere)
   local chrome_app=""
   [ -d "/Applications/Google Chrome.app" ]      && chrome_app="/Applications/Google Chrome.app"
   [ -d "$HOME/Applications/Google Chrome.app" ] && chrome_app="$HOME/Applications/Google Chrome.app"
+  _log "existing chrome_app = [$chrome_app]"
 
   if [ -z "$chrome_app" ]; then
     local dmg; dmg=$(mktemp -u).dmg
     local mountpoint
-    curl -fsSL "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg" -o "$dmg"
-    mountpoint=$(hdiutil attach "$dmg" -nobrowse -noverify -noautoopen 2>/dev/null \
-      | awk '/\/Volumes\// { for (i=3; i<=NF; i++) printf "%s ", $i; print "" }' \
-      | sed 's/ *$//' | head -1)
-    if [ -z "$mountpoint" ] || [ ! -d "$mountpoint/Google Chrome.app" ]; then
+    _log "downloading Chrome DMG to $dmg (~200MB)…"
+    # -f: fail on HTTP errors, -S: show errors even when silent, -L: follow
+    # redirects, --progress-bar: show one-line progress (goes to stderr →
+    # into our log, so each run grows the log by a few hundred lines — fine
+    # while we're debugging).
+    if ! curl -fSL --progress-bar \
+         "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg" \
+         -o "$dmg"; then
+      _log "curl failed: exit=$?"
       rm -f "$dmg"
       return 1
     fi
+    _log "DMG size: $(ls -la "$dmg" | awk '{print $5}') bytes"
+
+    _log "hdiutil attach…"
+    local attach_out
+    attach_out=$(hdiutil attach "$dmg" -nobrowse -noverify -noautoopen 2>&1)
+    _log "hdiutil output:"
+    printf '%s\n' "$attach_out" | sed 's/^/    /'
+    mountpoint=$(printf '%s' "$attach_out" \
+      | awk '/\/Volumes\// { for (i=3; i<=NF; i++) printf "%s ", $i; print "" }' \
+      | sed 's/ *$//' | head -1)
+    _log "parsed mountpoint = [$mountpoint]"
+
+    if [ -z "$mountpoint" ] || [ ! -d "$mountpoint/Google Chrome.app" ]; then
+      _log "mount FAILED — mountpoint empty or Google Chrome.app missing at [$mountpoint]"
+      # Try best-effort detach in case we partially attached
+      [ -n "$mountpoint" ] && hdiutil detach "$mountpoint" -force -quiet 2>/dev/null || true
+      rm -f "$dmg"
+      return 1
+    fi
+
     mkdir -p "$HOME/Applications"
     rm -rf "$HOME/Applications/Google Chrome.app"
+    _log "cp Chrome.app from $mountpoint to ~/Applications/"
     cp -R "$mountpoint/Google Chrome.app" "$HOME/Applications/"
     xattr -dr com.apple.quarantine "$HOME/Applications/Google Chrome.app" 2>/dev/null || true
+    _log "detaching DMG"
     hdiutil detach "$mountpoint" -quiet 2>/dev/null \
       || hdiutil detach "$mountpoint" -force -quiet 2>/dev/null \
       || true
     rm -f "$dmg"
     chrome_app="$HOME/Applications/Google Chrome.app"
+    _log "chrome_app now = $chrome_app"
   fi
 
   # 2. Build/rebuild the "Chrome with Claude Code.app" launcher (always, so
