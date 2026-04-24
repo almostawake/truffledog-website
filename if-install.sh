@@ -408,7 +408,9 @@ _configure_workspace() {
     2>/dev/null || true
 
   # Apply changes.
-  killall Finder 2>/dev/null || true
+  # Don't killall Finder — relaunch steals focus from Terminal (Claude's
+  # first-run "Trust this folder" prompt becomes unreachable). The new
+  # prefs apply to the next Cmd-N / next Finder launch, which is fine.
   killall Dock 2>/dev/null || true
   /System/Library/CoreServices/pbs -update 2>/dev/null || true
 }
