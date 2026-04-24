@@ -6,21 +6,13 @@
 # Usage:
 #   curl -fsSL https://truffledog.au/if-install.sh | bash
 #
-# This script currently does items 1–3 from the original flow:
-#   1. Load shared helpers (if-lib.sh)
-#   2. Detect what's already installed
-#   3. Install missing dependencies (Node 22, OpenJDK 21, Claude Code CLI)
-#
-# The project-clone / Chrome.app / provisioning steps have been parked
-# while the new project-flow is being developed (see if-tst-3.sh).
-#
 # CLAUDE EDIT NOTICE: When editing this file, bump ZSHRC_VERSION in
 # zshrc-remote by 1. Shows in user's prompt as [v38] etc. — their signal
 # that the push went live.
 #
 set -e
 
-# --- Step 1: Load shared helpers (colors, prompts, OS detection) ---
+# --- Load shared helpers (colors, prompts, OS detection) ---
 eval "$(curl -fsSL https://truffledog.au/if-lib.sh)"
 
 # --- Constants ---
@@ -31,31 +23,40 @@ MARKER_START="# >>> if install >>>"
 MARKER_END="# <<< if install <<<"
 INSTALL_URL="https://truffledog.au/if-install.sh"
 UNINSTALL_URL="https://truffledog.au/if-uninstall.sh"
+INSTALL_LOG="/tmp/if-install.log"
+: > "$INSTALL_LOG"
 
-# Keep user's ~/ clean: route npm cache and Claude state under ~/.if
-# Exported early so our own npm install uses the new cache location,
-# and re-exported via the zshrc block below for future sessions.
+# Keep ~/ clean: route npm cache and Claude state under ~/.if
 mkdir -p "$IF_HOME/npm-cache" "$IF_HOME/claude-config"
 export NPM_CONFIG_CACHE="$IF_HOME/npm-cache"
 export CLAUDE_CONFIG_DIR="$IF_HOME/claude-config"
 
 detect_os_arch
 
-# --- Step 2: Detect what's already installed ---
+# --- Detect macOS codename for Homebrew bottle tag ---
+MACOS_CODENAME=""
+if [ "$OS" = "darwin" ]; then
+  case "$(sw_vers -productVersion 2>/dev/null | cut -d. -f1)" in
+    14) MACOS_CODENAME="sonoma"  ;;
+    15) MACOS_CODENAME="sequoia" ;;
+    26) MACOS_CODENAME="tahoe"   ;;
+  esac
+fi
+
+# ==========================================================================
+# Detection — what's already installed
+# ==========================================================================
+
 have_node22=false
 if command -v node >/dev/null 2>&1; then
   nm="$(node -v 2>/dev/null | sed 's/v//' | cut -d. -f1)"
-  if [ -n "$nm" ] && [ "$nm" -ge 22 ] 2>/dev/null; then
-    have_node22=true
-  fi
+  [ -n "$nm" ] && [ "$nm" -ge 22 ] 2>/dev/null && have_node22=true
 fi
 
 have_java21=false
 if command -v java >/dev/null 2>&1; then
   jm="$(java -version 2>&1 | awk -F '"' '/version/ {print $2}' | cut -d. -f1)"
-  if [ -n "$jm" ] && [ "$jm" -ge 21 ] 2>/dev/null; then
-    have_java21=true
-  fi
+  [ -n "$jm" ] && [ "$jm" -ge 21 ] 2>/dev/null && have_java21=true
 fi
 
 have_claude=false
@@ -67,155 +68,32 @@ if [ -n "$git_path" ]; then
   case "$git_path" in
     /usr/bin/git)
       # macOS ships /usr/bin/git as a stub that triggers the CLT install
-      # dialog when invoked. It only resolves to a real git once Xcode
-      # Command Line Tools (or Xcode.app) is installed.
-      if xcode-select -p >/dev/null 2>&1; then
-        have_git=true
-      fi
+      # dialog when invoked. Real only once Xcode CLT/app is installed.
+      xcode-select -p >/dev/null 2>&1 && have_git=true
       ;;
-    *)
-      # git is from somewhere else (Homebrew, our ~/.if/git, asdf, etc.) —
-      # trust it.
-      have_git=true
-      ;;
+    *) have_git=true ;;
   esac
 fi
 
 have_gh=false
 command -v gh >/dev/null 2>&1 && have_gh=true
 
+# Chrome row represents Chrome.app + Claude-connected launcher together —
+# only "installed" when both exist.
 have_chrome=false
-if [ -d "$HOME/Applications/Google Chrome.app" ] || [ -d "/Applications/Google Chrome.app" ]; then
-  have_chrome=true
-fi
-
-# Detect macOS codename for Homebrew bottle tag (arm64 only — Intel users
-# fall back to xcode-select regardless).
-MACOS_CODENAME=""
 if [ "$OS" = "darwin" ]; then
-  case "$(sw_vers -productVersion 2>/dev/null | cut -d. -f1)" in
-    14) MACOS_CODENAME="sonoma"  ;;
-    15) MACOS_CODENAME="sequoia" ;;
-    26) MACOS_CODENAME="tahoe"   ;;
-    *)  MACOS_CODENAME=""        ;;
-  esac
-fi
-
-# --- Banner ---
-cat <<BANNER
-
-  ┌─────────────────────────────────┐
-  │     if — impatient futurist     │
-  └─────────────────────────────────┘
-
-This script will install the following if they're not already present:
-
-BANNER
-
-print_item() {
-  local name="$1" present="$2"
-  if [ "$present" = "true" ]; then
-    printf '  %s  %-16s %s\n' "$(tick)" "$name" "$(gray 'already installed')"
-  else
-    printf '  %s  %s\n' "$(dot)" "$name"
-  fi
-}
-
-print_item "Node 22"     "$have_node22"
-print_item "Java 21"     "$have_java21"
-print_item "Claude Code" "$have_claude"
-print_item "git"         "$have_git"
-print_item "gh"          "$have_gh"
-print_item "Chrome"      "$have_chrome"
-say ""
-
-# --- Prompt: proceed with deps install? ---
-if $have_node22 && $have_java21 && $have_claude && $have_git && $have_gh && $have_chrome; then
-  say "All dependencies already installed."
-  exit 0
-else
-  if ! prompt_yn "Do you wish to proceed?" "Y"; then
-    say "No changes made. Goodbye."
-    exit 0
+  if [ -d "$HOME/Applications/Chrome with Claude Code.app" ] && \
+     { [ -d "$HOME/Applications/Google Chrome.app" ] || \
+       [ -d "/Applications/Google Chrome.app" ]; }; then
+    have_chrome=true
   fi
 fi
 
-# --- Step 3: Install dependencies ---
+# ==========================================================================
+# Install helpers — each writes only to $INSTALL_LOG (via stdout redirect)
+# and returns 0 on success. No direct terminal output.
+# ==========================================================================
 
-# Node
-if ! $have_node22; then
-  say ""
-  say "Installing Node 22..."
-  mkdir -p "$IF_HOME/node"
-  case "$OS-$ARCH" in
-    darwin-arm64) plat="darwin-arm64"; ext="tar.gz" ;;
-    darwin-x64)   plat="darwin-x64";   ext="tar.gz" ;;
-    linux-x64)    plat="linux-x64";    ext="tar.xz" ;;
-    *) die "unsupported platform for Node: $OS-$ARCH" ;;
-  esac
-  url="https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-$plat.$ext"
-  if [ "$ext" = "tar.xz" ]; then
-    curl -fsSL "$url" | tar -xJ -C "$IF_HOME/node" --strip-components=1
-  else
-    curl -fsSL "$url" | tar -xz -C "$IF_HOME/node" --strip-components=1
-  fi
-  export PATH="$IF_HOME/node/bin:$PATH"
-  printf '  %s Node %s\n' "$(tick)" "$(node -v)"
-fi
-
-# Java
-if ! $have_java21; then
-  say ""
-  say "Installing Java 21..."
-  mkdir -p "$IF_HOME/java"
-  case "$OS-$ARCH" in
-    darwin-arm64) jplat="mac/aarch64" ;;
-    darwin-x64)   jplat="mac/x64"     ;;
-    linux-x64)    jplat="linux/x64"   ;;
-    *) die "unsupported platform for Java: $OS-$ARCH" ;;
-  esac
-  jurl="https://api.adoptium.net/v3/binary/latest/$JAVA_VERSION/ga/$jplat/jre/hotspot/normal/eclipse"
-  curl -fsSL "$jurl" | tar -xz -C "$IF_HOME/java" --strip-components=1
-  if [ "$OS" = "darwin" ]; then
-    export JAVA_HOME="$IF_HOME/java/Contents/Home"
-  else
-    export JAVA_HOME="$IF_HOME/java"
-  fi
-  export PATH="$JAVA_HOME/bin:$PATH"
-  jver="$(java -version 2>&1 | head -1 | tr -d '"')"
-  printf '  %s %s\n' "$(tick)" "$jver"
-fi
-
-# Claude Code CLI (into ~/.if/claude/ so it parallels node/ and java/)
-export PATH="$IF_HOME/claude/bin:$PATH"
-if ! $have_claude; then
-  say ""
-  say "Installing Claude Code..."
-  mkdir -p "$IF_HOME/claude"
-  npm_log="$(mktemp)"
-  if npm install --prefix "$IF_HOME/claude" -g @anthropic-ai/claude-code 2>&1 | tee "$npm_log" >/dev/null; then
-    rm -f "$npm_log"
-    printf '  %s claude installed\n' "$(tick)"
-  else
-    say ""
-    say "npm install output:"
-    cat "$npm_log"
-    rm -f "$npm_log"
-    die "claude install failed — see npm output above"
-  fi
-fi
-
-# --- git ---
-# ARM: fetch Homebrew bottles from ghcr.io, patch dylib paths, re-sign. ~64MB
-#      under ~/.if/git/. No admin, no Xcode CLT.
-# Intel: fall back to `xcode-select --install` GUI dialog (~2GB, no admin but
-#        requires one click + ~10min wait).
-#
-# The ARM path only works when we know the bottle tag for the current macOS
-# (MACOS_CODENAME is set). Unknown macOS → CLT fallback.
-
-# Fetch a single Homebrew bottle by name + tag + target staging dir.
-# Extracts the tarball (which contains <name>/<version>/...).
 fetch_bottle() {
   local pkg="$1" tag="$2" stage="$3"
   local json url token
@@ -230,71 +108,83 @@ fetch_bottle() {
   curl -fsSL -H "Authorization: Bearer $token" "$url" | tar -xz -C "$stage" || return 1
 }
 
-install_git_bottle() {
-  # Assembles a usable git from three Homebrew bottles without rewriting
-  # any binaries. Bottles reference their deps as "@@HOMEBREW_PREFIX@@/..."
-  # which dyld can't resolve — we set DYLD_FALLBACK_LIBRARY_PATH in the
-  # zshrc block to point at ~/.if/git/lib so dyld finds the libs by
-  # basename as a fallback. This avoids needing install_name_tool +
-  # codesign (both of which depend on Xcode CLT being installed).
+_install_node() {
+  mkdir -p "$IF_HOME/node"
+  local plat ext url
+  case "$OS-$ARCH" in
+    darwin-arm64) plat="darwin-arm64"; ext="tar.gz" ;;
+    darwin-x64)   plat="darwin-x64";   ext="tar.gz" ;;
+    linux-x64)    plat="linux-x64";    ext="tar.xz" ;;
+    *) die "unsupported platform for Node: $OS-$ARCH" ;;
+  esac
+  url="https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-$plat.$ext"
+  if [ "$ext" = "tar.xz" ]; then
+    curl -fsSL "$url" | tar -xJ -C "$IF_HOME/node" --strip-components=1
+  else
+    curl -fsSL "$url" | tar -xz -C "$IF_HOME/node" --strip-components=1
+  fi
+  export PATH="$IF_HOME/node/bin:$PATH"
+}
+
+_install_java() {
+  mkdir -p "$IF_HOME/java"
+  local jplat jurl
+  case "$OS-$ARCH" in
+    darwin-arm64) jplat="mac/aarch64" ;;
+    darwin-x64)   jplat="mac/x64"     ;;
+    linux-x64)    jplat="linux/x64"   ;;
+    *) die "unsupported platform for Java: $OS-$ARCH" ;;
+  esac
+  jurl="https://api.adoptium.net/v3/binary/latest/$JAVA_VERSION/ga/$jplat/jre/hotspot/normal/eclipse"
+  curl -fsSL "$jurl" | tar -xz -C "$IF_HOME/java" --strip-components=1
+  if [ "$OS" = "darwin" ]; then
+    export JAVA_HOME="$IF_HOME/java/Contents/Home"
+  else
+    export JAVA_HOME="$IF_HOME/java"
+  fi
+  export PATH="$JAVA_HOME/bin:$PATH"
+}
+
+# git — ARM uses Homebrew bottle extraction (no CLT), Intel falls back to
+# xcode-select --install (GUI dialog).
+_install_git() {
+  if [ "$OS" = "darwin" ] && [ "$ARCH" = "arm64" ] && [ -n "$MACOS_CODENAME" ]; then
+    _install_git_bottle "arm64_${MACOS_CODENAME}" && return 0
+    # Fall through to CLT on bottle failure.
+  fi
+  _install_git_xcode
+}
+
+_install_git_bottle() {
   local tag="$1"
   local stage; stage=$(mktemp -d)
   fetch_bottle git     "$tag" "$stage" || { rm -rf "$stage"; return 1; }
   fetch_bottle pcre2   "$tag" "$stage" || { rm -rf "$stage"; return 1; }
   fetch_bottle gettext "$tag" "$stage" || { rm -rf "$stage"; return 1; }
-
   local git_ver pcre2_ver gettext_ver
   git_ver=$(ls "$stage/git" | head -1)
   pcre2_ver=$(ls "$stage/pcre2" | head -1)
   gettext_ver=$(ls "$stage/gettext" | head -1)
-
   rm -rf "$IF_HOME/git"
   mkdir -p "$IF_HOME/git/lib"
   cp -R "$stage/git/$git_ver/." "$IF_HOME/git/"
   cp "$stage/pcre2/$pcre2_ver/lib/libpcre2-8.0.dylib" "$IF_HOME/git/lib/"
   cp "$stage/gettext/$gettext_ver/lib/libintl.8.dylib" "$IF_HOME/git/lib/"
-
   rm -rf "$stage"
-  local ver
-  ver=$(DYLD_FALLBACK_LIBRARY_PATH="$IF_HOME/git/lib" "$IF_HOME/git/bin/git" --version 2>/dev/null | awk '{print $3}')
-  printf '  %s git %s\n' "$(tick)" "$ver"
+  # Verify by running it once; set DYLD_FALLBACK_LIBRARY_PATH so the
+  # baked-in @@HOMEBREW_PREFIX@@ paths resolve.
+  DYLD_FALLBACK_LIBRARY_PATH="$IF_HOME/git/lib" "$IF_HOME/git/bin/git" --version >/dev/null
 }
 
-install_git_xcode() {
-  if xcode-select -p >/dev/null 2>&1; then
-    printf '  %s git (via existing Command Line Tools)\n' "$(tick)"
-    return 0
-  fi
-  say "  Triggering macOS Command Line Tools install (needed for git)..."
-  say "  A dialog will appear — click Install and wait (~10 min, ~2GB)."
+_install_git_xcode() {
+  if xcode-select -p >/dev/null 2>&1; then return 0; fi
+  # GUI dialog triggers here. User must click, wait ~10min.
+  # We go silent after triggering and poll until CLT appears.
   xcode-select --install 2>/dev/null || true
-  local waited=0
-  while ! xcode-select -p >/dev/null 2>&1; do
-    sleep 10
-    waited=$((waited+10))
-    [ $((waited % 60)) -eq 0 ] && say "  Still waiting for Command Line Tools... (${waited}s)"
-  done
-  printf '  %s git (via Command Line Tools)\n' "$(tick)"
+  while ! xcode-select -p >/dev/null 2>&1; do sleep 10; done
 }
 
-if ! $have_git; then
-  say ""
-  say "Installing git..."
-  if [ "$OS" = "darwin" ] && [ "$ARCH" = "arm64" ] && [ -n "$MACOS_CODENAME" ]; then
-    if ! install_git_bottle "arm64_${MACOS_CODENAME}"; then
-      say "  Bottle install failed — falling back to Command Line Tools"
-      install_git_xcode
-    fi
-  else
-    install_git_xcode
-  fi
-fi
-# Put our bottle-git on PATH for this session if it's there.
-[ -x "$IF_HOME/git/bin/git" ] && export PATH="$IF_HOME/git/bin:$PATH"
-
-# --- GitHub CLI (gh) ---
-# Official release tarball (actually .zip on macOS) under ~/.if/gh/.
-install_gh() {
+_install_gh() {
   local arch_gh
   case "$ARCH" in
     arm64) arch_gh="arm64" ;;
@@ -321,70 +211,66 @@ install_gh() {
   rm -rf "$IF_HOME/gh"
   mv "$(ls -d "$tmp_dir"/*/)" "$IF_HOME/gh"
   rm -rf "$tmp_zip" "$tmp_dir"
-  printf '  %s gh %s\n' "$(tick)" "$("$IF_HOME/gh/bin/gh" --version 2>/dev/null | head -1 | awk '{print $3}')"
 }
 
-if ! $have_gh; then
-  say ""
-  say "Installing gh..."
-  install_gh
-fi
-[ -x "$IF_HOME/gh/bin/gh" ] && export PATH="$IF_HOME/gh/bin:$PATH"
+# Claude Code binary + YOLO config files drop (CLAUDE.md, .claude.json,
+# .claude/settings.json under $CLAUDE_CONFIG_DIR).
+_install_claude() {
+  mkdir -p "$IF_HOME/claude"
+  export PATH="$IF_HOME/claude/bin:$PATH"
+  npm install --prefix "$IF_HOME/claude" -g @anthropic-ai/claude-code
 
-# --- Chrome Stable (macOS only) ---
-# Real Chrome Stable, installed to ~/Applications/ (no admin needed —
-# macOS supports per-user app installs there natively). Full Widevine CDM
-# + normal Keystone auto-update behavior, which is what we need for
-# stealth scraping / Puppeteer on protected sites — Chrome for Testing
-# flunks those detection checks.
-install_chrome() {
-  local dmg; dmg=$(mktemp -u).dmg
-  local mountpoint
-  curl -fsSL "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg" -o "$dmg"
-  mountpoint=$(hdiutil attach "$dmg" -nobrowse -noverify -noautoopen 2>/dev/null \
-    | awk '/\/Volumes\// { for (i=3; i<=NF; i++) printf "%s ", $i; print "" }' \
-    | sed 's/ *$//' | head -1)
-  if [ -z "$mountpoint" ] || [ ! -d "$mountpoint/Google Chrome.app" ]; then
-    rm -f "$dmg"
-    return 1
-  fi
-  mkdir -p "$HOME/Applications"
-  rm -rf "$HOME/Applications/Google Chrome.app"
-  cp -R "$mountpoint/Google Chrome.app" "$HOME/Applications/"
-  xattr -dr com.apple.quarantine "$HOME/Applications/Google Chrome.app" 2>/dev/null || true
-  hdiutil detach "$mountpoint" -quiet 2>/dev/null || hdiutil detach "$mountpoint" -force -quiet 2>/dev/null || true
-  rm -f "$dmg"
-  local ver
-  ver=$(/usr/bin/defaults read "$HOME/Applications/Google Chrome.app/Contents/Info" CFBundleShortVersionString 2>/dev/null)
-  printf '  %s Chrome %s → ~/Applications/\n' "$(tick)" "$ver"
+  # Seed config files (only if not already present — re-runs preserve state)
+  mkdir -p "$IF_HOME/claude-config/.claude"
+  [ -f "$IF_HOME/claude-config/.claude/CLAUDE.md" ] || \
+    curl -fsSL https://truffledog.au/if-claude.md -o "$IF_HOME/claude-config/.claude/CLAUDE.md"
+  [ -f "$IF_HOME/claude-config/.claude.json" ] || \
+    curl -fsSL https://truffledog.au/if-claude.json -o "$IF_HOME/claude-config/.claude.json"
+  [ -f "$IF_HOME/claude-config/.claude/settings.json" ] || \
+    curl -fsSL https://truffledog.au/if-claude-settings.json -o "$IF_HOME/claude-config/.claude/settings.json"
 }
 
-if [ "$OS" = "darwin" ] && ! $have_chrome; then
-  say ""
-  say "Installing Chrome..."
-  install_chrome || die "Chrome install failed"
-fi
+# Chrome Stable + Chrome with Claude Code.app launcher.
+_install_chrome() {
+  [ "$OS" = "darwin" ] || return 0
 
-# --- "Chrome with Claude Code.app" launcher bundle ---
-# Always rebuilt (so flag updates in this installer take effect on re-runs).
-# Uses Chrome's own icon, launches Chrome with --remote-debugging-port=9222
-# against a SEPARATE profile at ~/Library/Application Support/Google/Chrome-Claude
-# so the user's regular Chrome browsing profile isn't touched.
-if [ "$OS" = "darwin" ]; then
-  # Pick whichever Chrome.app the user has (user-level wins).
-  CHROME_APP=""
-  [ -d "/Applications/Google Chrome.app" ]       && CHROME_APP="/Applications/Google Chrome.app"
-  [ -d "$HOME/Applications/Google Chrome.app" ]  && CHROME_APP="$HOME/Applications/Google Chrome.app"
+  # 1. Install Chrome.app (skip if already present anywhere)
+  local chrome_app=""
+  [ -d "/Applications/Google Chrome.app" ]      && chrome_app="/Applications/Google Chrome.app"
+  [ -d "$HOME/Applications/Google Chrome.app" ] && chrome_app="$HOME/Applications/Google Chrome.app"
 
-  if [ -n "$CHROME_APP" ]; then
-    LAUNCHER_APP="$HOME/Applications/Chrome with Claude Code.app"
+  if [ -z "$chrome_app" ]; then
+    local dmg; dmg=$(mktemp -u).dmg
+    local mountpoint
+    curl -fsSL "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg" -o "$dmg"
+    mountpoint=$(hdiutil attach "$dmg" -nobrowse -noverify -noautoopen 2>/dev/null \
+      | awk '/\/Volumes\// { for (i=3; i<=NF; i++) printf "%s ", $i; print "" }' \
+      | sed 's/ *$//' | head -1)
+    if [ -z "$mountpoint" ] || [ ! -d "$mountpoint/Google Chrome.app" ]; then
+      rm -f "$dmg"
+      return 1
+    fi
     mkdir -p "$HOME/Applications"
-    rm -rf "$LAUNCHER_APP"
-    mkdir -p "$LAUNCHER_APP/Contents/MacOS"
-    mkdir -p "$LAUNCHER_APP/Contents/Resources"
-    cp "$CHROME_APP/Contents/Resources/app.icns" "$LAUNCHER_APP/Contents/Resources/app.icns" 2>/dev/null || true
+    rm -rf "$HOME/Applications/Google Chrome.app"
+    cp -R "$mountpoint/Google Chrome.app" "$HOME/Applications/"
+    xattr -dr com.apple.quarantine "$HOME/Applications/Google Chrome.app" 2>/dev/null || true
+    hdiutil detach "$mountpoint" -quiet 2>/dev/null \
+      || hdiutil detach "$mountpoint" -force -quiet 2>/dev/null \
+      || true
+    rm -f "$dmg"
+    chrome_app="$HOME/Applications/Google Chrome.app"
+  fi
 
-    cat > "$LAUNCHER_APP/Contents/Info.plist" <<'CHROMEPLIST'
+  # 2. Build/rebuild the "Chrome with Claude Code.app" launcher (always, so
+  #    flag changes take effect on re-runs).
+  local launcher_app="$HOME/Applications/Chrome with Claude Code.app"
+  mkdir -p "$HOME/Applications"
+  rm -rf "$launcher_app"
+  mkdir -p "$launcher_app/Contents/MacOS"
+  mkdir -p "$launcher_app/Contents/Resources"
+  cp "$chrome_app/Contents/Resources/app.icns" "$launcher_app/Contents/Resources/app.icns" 2>/dev/null || true
+
+  cat > "$launcher_app/Contents/Info.plist" <<'CHROMEPLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -417,10 +303,8 @@ if [ "$OS" = "darwin" ]; then
 </plist>
 CHROMEPLIST
 
-    # Escape the Chrome.app path for the launcher script
-    cat > "$LAUNCHER_APP/Contents/MacOS/Chrome with Claude Code" <<CHROMELAUNCH
+  cat > "$launcher_app/Contents/MacOS/Chrome with Claude Code" <<CHROMELAUNCH
 #!/bin/bash
-# Graceful quit first — Chrome holds locks on its user-data-dir
 osascript -e 'tell application "Google Chrome" to quit' 2>/dev/null
 for i in \$(seq 1 10); do
   pgrep -qf 'Google Chrome' || break
@@ -433,13 +317,11 @@ fi
 
 PROFILE="\$HOME/Library/Application Support/Google/Chrome-Claude"
 
-"$CHROME_APP/Contents/MacOS/Google Chrome" \\
+"$chrome_app/Contents/MacOS/Google Chrome" \\
   --remote-debugging-port=9222 \\
   --silent-debugger-extension-api \\
   --user-data-dir="\$PROFILE" &>/dev/null &
 
-# Wait for the debug port to be up + write DevToolsActivePort so that the
-# chrome-devtools MCP server (and claude-in-chrome extension) can locate it.
 for i in \$(seq 1 20); do
   sleep 0.5
   curl -s http://localhost:9222/json/version >/dev/null 2>&1 && break
@@ -449,128 +331,196 @@ wspath=\$(curl -s http://localhost:9222/json/version | \\
   perl -MJSON::PP -e 'my \$j=decode_json(join("",<STDIN>)); my \$u=\$j->{webSocketDebuggerUrl} // ""; my (\$p) = \$u =~ m{:9222(.*)}; print \$p // ""')
 printf '9222\n'"\${wspath}" > "\$HOME/Library/Application Support/Google/Chrome/DevToolsActivePort"
 CHROMELAUNCH
-    chmod +x "$LAUNCHER_APP/Contents/MacOS/Chrome with Claude Code"
-    touch "$LAUNCHER_APP"
-    printf '  %s Chrome with Claude Code.app → ~/Applications/\n' "$(tick)"
+  chmod +x "$launcher_app/Contents/MacOS/Chrome with Claude Code"
+  touch "$launcher_app"
+}
+
+# Silent end-step: pre-configure Terminal.app so Option-Enter inserts a
+# newline (what "shift-enter" in Claude Code actually needs). Writes to the
+# user's active Terminal profile.
+_configure_terminal() {
+  [ "$OS" = "darwin" ] || return 0
+  local plist="$HOME/Library/Preferences/com.apple.Terminal.plist"
+  [ -f "$plist" ] || return 0
+  [ -f "${plist}.bak" ] || cp "$plist" "${plist}.bak"
+  local profile
+  profile=$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || echo "Basic")
+  plutil -insert  "Window Settings.${profile}.useOptionAsMetaKey" -bool YES "$plist" 2>/dev/null \
+    || plutil -replace "Window Settings.${profile}.useOptionAsMetaKey" -bool YES "$plist" 2>/dev/null \
+    || true
+}
+
+# Silent end-step: write our marker-fenced block to ~/.zshrc.
+_write_zshrc() {
+  local zshrc="$HOME/.zshrc"
+  [ -e "$zshrc" ] || touch "$zshrc"
+  if [ -s "$zshrc" ]; then
+    local ts; ts=$(date +%Y%m%d-%H%M)
+    cp "$zshrc" "${zshrc}.${ts}.bak"
   fi
-fi
-
-# --- Claude Code personal config files ---
-# ~/.claude/CLAUDE.md      — personal instructions Claude reads on every run
-# ~/.claude.json           — user state (onboarding flags etc.)
-# ~/.claude/settings.json  — runtime settings (YOLO mode etc.)
-#
-# With CLAUDE_CONFIG_DIR set, these live under $CLAUDE_CONFIG_DIR/
-# mirroring the default $HOME/.claude/... layout.
-mkdir -p "$IF_HOME/claude-config/.claude"
-if [ ! -f "$IF_HOME/claude-config/.claude/CLAUDE.md" ]; then
-  curl -fsSL https://truffledog.au/if-claude.md            -o "$IF_HOME/claude-config/.claude/CLAUDE.md"       || true
-fi
-if [ ! -f "$IF_HOME/claude-config/.claude.json" ]; then
-  curl -fsSL https://truffledog.au/if-claude.json          -o "$IF_HOME/claude-config/.claude.json"            || true
-fi
-if [ ! -f "$IF_HOME/claude-config/.claude/settings.json" ]; then
-  curl -fsSL https://truffledog.au/if-claude-settings.json -o "$IF_HOME/claude-config/.claude/settings.json"   || true
-fi
-
-# --- Terminal.app: enable "Use Option as Meta Key" ---
-# Claude Code's first-run onboarding would normally do this via its
-# /terminal-setup. We're pre-doing it so the onboarding flags in
-# if-claude.json (optionAsMetaKeyInstalled/shiftEnterKeyBindingInstalled)
-# are honest. Writes to the user's active Terminal profile.
-#
-# "Shift-enter for newline" is actually Option-Enter once this is set —
-# Terminal sends ESC+\r, which Claude reads as newline vs. plain \r = submit.
-if [ "$OS" = "darwin" ]; then
-  TERM_PLIST="$HOME/Library/Preferences/com.apple.Terminal.plist"
-  if [ -f "$TERM_PLIST" ]; then
-    # Back up so the user can revert if they want
-    if [ ! -f "${TERM_PLIST}.bak" ]; then
-      cp "$TERM_PLIST" "${TERM_PLIST}.bak"
-    fi
-    TERM_PROFILE=$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || echo "Basic")
-    # -insert fails if key exists, -replace fails if not — try insert, then replace
-    plutil -insert  "Window Settings.${TERM_PROFILE}.useOptionAsMetaKey" -bool YES "$TERM_PLIST" 2>/dev/null \
-      || plutil -replace "Window Settings.${TERM_PROFILE}.useOptionAsMetaKey" -bool YES "$TERM_PLIST" 2>/dev/null \
-      || true
-    printf '  %s Terminal.app: Option set as Meta on profile "%s"\n' "$(tick)" "$TERM_PROFILE"
+  if grep -qF "$MARKER_START" "$zshrc"; then
+    local tmpf; tmpf=$(mktemp)
+    awk -v s="$MARKER_START" -v e="$MARKER_END" '
+      $0 == s { skip=1; next }
+      $0 == e { skip=0; next }
+      !skip  { print }
+    ' "$zshrc" > "$tmpf"
+    mv "$tmpf" "$zshrc"
   fi
+  local jh_value
+  if [ "$OS" = "darwin" ]; then
+    jh_value="\$HOME/.if/java/Contents/Home"
+  else
+    jh_value="\$HOME/.if/java"
+  fi
+  {
+    [ -s "$zshrc" ] && printf '\n'
+    printf '%s\n' "$MARKER_START"
+    printf 'export PATH="$HOME/.if/node/bin:$PATH"\n'
+    printf 'export PATH="$HOME/.if/claude/bin:$PATH"\n'
+    printf 'export PATH="$HOME/.if/gh/bin:$PATH"\n'
+    printf '[ -x "$HOME/.if/git/bin/git" ] && export PATH="$HOME/.if/git/bin:$PATH"\n'
+    printf '[ -d "$HOME/.if/git/libexec/git-core" ] && export GIT_EXEC_PATH="$HOME/.if/git/libexec/git-core"\n'
+    printf '[ -d "$HOME/.if/git/lib" ] && export DYLD_FALLBACK_LIBRARY_PATH="$HOME/.if/git/lib:$HOME/lib:/usr/local/lib:/usr/lib"\n'
+    printf 'export JAVA_HOME="%s"\n' "$jh_value"
+    printf 'export PATH="$JAVA_HOME/bin:$PATH"\n'
+    printf 'export NPM_CONFIG_CACHE="$HOME/.if/npm-cache"\n'
+    printf 'export CLAUDE_CONFIG_DIR="$HOME/.if/claude-config"\n'
+    printf "alias cc='claude --dangerously-skip-permissions'\n"
+    printf "alias ccc='claude --dangerously-skip-permissions --continue'\n"
+    printf "alias ccr='claude --dangerously-skip-permissions --resume'\n"
+    printf '%s\n' "$MARKER_END"
+  } >> "$zshrc"
+}
+
+# ==========================================================================
+# UI — draw the reusable list, prompt, and update rows in place
+# ==========================================================================
+
+ITEMS=(
+  "node 22"
+  "java 21"
+  "git"
+  "gh"
+  "claude code [in YOLO mode]"
+  "chrome [connected to Claude]"
+)
+HAVE=(
+  "$have_node22"
+  "$have_java21"
+  "$have_git"
+  "$have_gh"
+  "$have_claude"
+  "$have_chrome"
+)
+N=${#ITEMS[@]}
+
+# draw_row "$i" "$state"  — state: installed | installing | pending
+draw_row() {
+  local i="$1" state="$2"
+  local icon text color
+  case "$state" in
+    installed)  icon="${C_GRN}✓${C_RST}";  text="installed";    color="$C_GRN"  ;;
+    installing) icon="${C_GRAY}⋯${C_RST}"; text="installing..."; color="$C_GRAY" ;;
+    pending)    icon="${C_GRAY}○${C_RST}"; text="will install"; color="$C_GRAY" ;;
+  esac
+  printf '  %b  %-34s %b%s%b\n' "$icon" "${ITEMS[$i]}" "$color" "$text" "$C_RST"
+}
+
+# update_row "$i" "$state" — move cursor up to row i, re-draw, move back.
+# Assumes cursor is at "line after the last row" before each call, and
+# leaves it there afterwards.
+update_row() {
+  local i="$1" state="$2"
+  local up=$((N - i))
+  printf '\033[%dA\r\033[K' "$up"
+  draw_row "$i" "$state"
+  local down=$((N - i - 1))
+  [ "$down" -gt 0 ] && printf '\033[%dB\r' "$down"
+}
+
+# run_install "$i" "_install_fn" — only runs if the item isn't already
+# marked have=true. Shows "installing..." then "installed".
+run_install() {
+  local i="$1" fn="$2"
+  [ "${HAVE[$i]}" = "true" ] && return 0
+  update_row "$i" "installing"
+  if "$fn" >> "$INSTALL_LOG" 2>&1; then
+    update_row "$i" "installed"
+  else
+    update_row "$i" "pending"
+    echo ""
+    echo "install of ${ITEMS[$i]} failed — see $INSTALL_LOG" >&2
+    exit 1
+  fi
+}
+
+# --- Banner ---
+cat <<BANNER
+
+  ┌─────────────────────────────────┐
+  │     if — impatient futurist     │
+  └─────────────────────────────────┘
+
+We're about to install whatever's missing from:
+
+BANNER
+
+# --- Initial list (cursor ends on the line just below the last row) ---
+for i in $(seq 0 $((N - 1))); do
+  if [ "${HAVE[$i]}" = "true" ]; then
+    draw_row "$i" "installed"
+  else
+    draw_row "$i" "pending"
+  fi
+done
+
+# --- Short-circuit if everything already installed ---
+all_installed=true
+for h in "${HAVE[@]}"; do
+  [ "$h" = "true" ] || { all_installed=false; break; }
+done
+if $all_installed; then
+  say ""
+  say "All dependencies already installed."
+  exit 0
 fi
 
-# --- Update ~/.zshrc ---
-# 1. If ~/.zshrc doesn't exist, create it (empty).
-# 2. If it has content, back it up to a timestamped .bak (even on re-runs).
-# 3. If our marker-fenced block is present, strip it — we'll re-append fresh
-#    (so new versions of this installer can change paths cleanly).
-# 4. Append the current block.
-zshrc="$HOME/.zshrc"
-
-if [ ! -e "$zshrc" ]; then
-  touch "$zshrc"
+# --- Prompt ---
+echo ""
+if ! prompt_yn "Proceed?" "Y"; then
+  say "No changes made. Goodbye."
+  exit 0
 fi
 
-if [ -s "$zshrc" ]; then
-  ts=$(date +%Y%m%d-%H%M)
-  backup="${zshrc}.${ts}.bak"
-  cp "$zshrc" "$backup"
-  printf '  %s Backed up ~/.zshrc → %s\n' "$(tick)" "$(basename "$backup")"
-fi
+# Wipe the prompt + blank line so cursor returns to "after list" position.
+# Prompt added 2 lines (blank + prompt with Enter).
+printf '\033[2A\033[J'
 
-if grep -qF "$MARKER_START" "$zshrc"; then
-  tmpf=$(mktemp)
-  awk -v s="$MARKER_START" -v e="$MARKER_END" '
-    $0 == s { skip=1; next }
-    $0 == e { skip=0; next }
-    !skip  { print }
-  ' "$zshrc" > "$tmpf"
-  mv "$tmpf" "$zshrc"
-fi
+# --- Run installs (UI rows update in place) ---
+run_install 0 _install_node
+run_install 1 _install_java
+run_install 2 _install_git
+run_install 3 _install_gh
+run_install 4 _install_claude
+run_install 5 _install_chrome
 
-if [ "$OS" = "darwin" ]; then
-  jh_value="\$HOME/.if/java/Contents/Home"
-else
-  jh_value="\$HOME/.if/java"
-fi
+# --- Silent end steps (no row, just do the work) ---
+_configure_terminal >> "$INSTALL_LOG" 2>&1
+_write_zshrc        >> "$INSTALL_LOG" 2>&1
 
-{
-  [ -s "$zshrc" ] && printf '\n'
-  printf '%s\n' "$MARKER_START"
-  printf 'export PATH="$HOME/.if/node/bin:$PATH"\n'
-  printf 'export PATH="$HOME/.if/claude/bin:$PATH"\n'
-  printf 'export PATH="$HOME/.if/gh/bin:$PATH"\n'
-  printf '[ -x "$HOME/.if/git/bin/git" ] && export PATH="$HOME/.if/git/bin:$PATH"\n'
-  printf '[ -d "$HOME/.if/git/libexec/git-core" ] && export GIT_EXEC_PATH="$HOME/.if/git/libexec/git-core"\n'
-  # dyld falls back here when the bottle's baked-in @@HOMEBREW_PREFIX@@ paths
-  # fail to resolve. Preserves dyld's default fallbacks ($HOME/lib:/usr/local/lib:/usr/lib).
-  printf '[ -d "$HOME/.if/git/lib" ] && export DYLD_FALLBACK_LIBRARY_PATH="$HOME/.if/git/lib:$HOME/lib:/usr/local/lib:/usr/lib"\n'
-  printf 'export JAVA_HOME="%s"\n' "$jh_value"
-  printf 'export PATH="$JAVA_HOME/bin:$PATH"\n'
-  printf 'export NPM_CONFIG_CACHE="$HOME/.if/npm-cache"\n'
-  printf 'export CLAUDE_CONFIG_DIR="$HOME/.if/claude-config"\n'
-  # Claude Code aliases (match the ones in zshrc-remote)
-  printf "alias cc='claude --dangerously-skip-permissions'\n"
-  printf "alias ccc='claude --dangerously-skip-permissions --continue'\n"
-  printf "alias ccr='claude --dangerously-skip-permissions --resume'\n"
-  printf '%s\n' "$MARKER_END"
-} >> "$zshrc"
+echo ""
+echo "$(bold 'Dependencies installed.')"
+echo ""
 
-say ""
-say "Updated your login script to use these."
-say "Claude Code set in YOLO mode."
-say ""
-say "$(bold 'Dependencies installed.')"
-say ""
-
-# Launch Chrome with Claude Code in the background so the user lands
-# straight into the agent-ready browser when the install finishes.
+# Launch Chrome with Claude Code so the user lands straight into an
+# agent-ready browser.
 if [ "$OS" = "darwin" ] && [ -d "$HOME/Applications/Chrome with Claude Code.app" ]; then
   open "$HOME/Applications/Chrome with Claude Code.app" 2>/dev/null || true
 fi
 
-# Drop the user into a fresh login zsh so PATH / JAVA_HOME are live without
-# needing a new terminal window. 'exit' (or ctrl-D) returns to the original
-# shell. </dev/tty reconnects stdin to the terminal in case we're running
-# via `curl ... | bash` where stdin is a pipe.
+# Drop user into a fresh login zsh so PATH/JAVA_HOME are live without
+# opening a new terminal. 'exit' returns to their original shell.
 if [ -t 1 ] && [ -r /dev/tty ]; then
   exec zsh -l </dev/tty
 fi
