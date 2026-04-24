@@ -232,9 +232,9 @@ _install_claude() {
   # Seed config files (only if not already present — re-runs preserve state)
   mkdir -p "$IF_HOME/claude-config/.claude"
   [ -f "$IF_HOME/claude-config/.claude/CLAUDE.md" ] || \
-    curl -fsSL https://truffledog.au/if-claude.md -o "$IF_HOME/claude-config/.claude/CLAUDE.md"
+    curl -fsSL https://truffledog.au/if-a-claude.md -o "$IF_HOME/claude-config/.claude/CLAUDE.md"
   [ -f "$IF_HOME/claude-config/.claude/settings.json" ] || \
-    curl -fsSL https://truffledog.au/if-claude-settings.json -o "$IF_HOME/claude-config/.claude/settings.json"
+    curl -fsSL https://truffledog.au/if-a-claude-settings.json -o "$IF_HOME/claude-config/.claude/settings.json"
 
   # .claude.json needs a theme injected based on current system appearance —
   # dark theme for dark-mode users, light for light. Only runs on first
@@ -242,7 +242,7 @@ _install_claude() {
   # later changed via Claude's /theme command.
   local claude_json="$IF_HOME/claude-config/.claude.json"
   if [ ! -f "$claude_json" ]; then
-    curl -fsSL https://truffledog.au/if-claude.json -o "$claude_json"
+    curl -fsSL https://truffledog.au/if-a-claude.json -o "$claude_json"
     if [ "$OS" = "darwin" ]; then
       local theme="light"
       defaults read -g AppleInterfaceStyle 2>/dev/null | grep -q Dark && theme="dark"
@@ -506,6 +506,20 @@ IFTERMEXEC
   # Bumping mtime forces LaunchServices/Dock to re-register the icon if we
   # rebuilt the bundle after a prior install.
   touch "$if_term"
+
+  # Install "Claude Code at Folder" Finder right-click Quick Action.
+  # The .workflow bundle was built once in Automator.app and zipped; we
+  # unzip it into ~/Library/Services/ and the `pbs -update` below makes
+  # it show up in the Finder right-click menu. rm -rf first so re-runs
+  # pick up any content changes in the workflow.
+  mkdir -p "$HOME/Library/Services"
+  rm -rf "$HOME/Library/Services/Claude Code at Folder.workflow"
+  local qa_zip; qa_zip=$(mktemp -u).zip
+  if curl -fsSL https://truffledog.au/if-a-quick-action.zip -o "$qa_zip"; then
+    unzip -q -o "$qa_zip" -d "$HOME/Library/Services/" || true
+    rm -rf "$HOME/Library/Services/__MACOSX"
+  fi
+  rm -f "$qa_zip"
 
   # === Pass 1: all `defaults write` calls ===
   # These go to cfprefsd's in-memory cache, not directly to disk.

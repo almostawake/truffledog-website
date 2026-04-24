@@ -76,6 +76,7 @@ paths=(
   "$HOME/Applications/IF Terminal.app"
   "$HOME/Library/Application Support/Google/Chrome-Claude"
   "$HOME/Library/Application Support/Google/Chrome"
+  "$HOME/Library/Services/Claude Code at Folder.workflow"
   "/tmp/if-install.log"
 )
 
