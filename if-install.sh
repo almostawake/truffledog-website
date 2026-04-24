@@ -653,34 +653,31 @@ _write_zshrc() {
 # UI — draw the reusable list, prompt, and update rows in place
 # ==========================================================================
 
-ITEMS=(
-  "node 22"
-  "java 21"
-  "git"
-  "gh"
-  "claude code [in YOLO mode]"
-  "chrome [connected to Claude]"
-)
-HAVE=(
-  "$have_node22"
-  "$have_java21"
-  "$have_git"
-  "$have_gh"
-  "$have_claude"
-  "$have_chrome"
-)
+# Build the list of items that need installing. Already-installed ones
+# never appear on screen — the user only sees what the installer is
+# actually going to do. INSTALL_FNS is kept in lockstep with ITEMS so the
+# run loop can be a simple zip over indices.
+ITEMS=()
+INSTALL_FNS=()
+[ "$have_node22" = "true" ] || { ITEMS+=("node 22");                     INSTALL_FNS+=("_install_node");   }
+[ "$have_java21" = "true" ] || { ITEMS+=("java 21");                     INSTALL_FNS+=("_install_java");   }
+[ "$have_git" = "true" ]    || { ITEMS+=("git");                          INSTALL_FNS+=("_install_git");    }
+[ "$have_gh" = "true" ]     || { ITEMS+=("gh");                           INSTALL_FNS+=("_install_gh");     }
+[ "$have_claude" = "true" ] || { ITEMS+=("claude code [in YOLO mode]");   INSTALL_FNS+=("_install_claude"); }
+[ "$have_chrome" = "true" ] || { ITEMS+=("chrome [connected to Claude]"); INSTALL_FNS+=("_install_chrome"); }
 N=${#ITEMS[@]}
 
 # draw_row "$i" "$state"  — state: installed | installing | pending
+# No status text at end; the icon + whole-line colour carry the state.
 draw_row() {
   local i="$1" state="$2"
-  local icon text color
+  local icon color
   case "$state" in
-    installed)  icon="${C_GRN}✓${C_RST}";  text="installed";    color="$C_GRN"  ;;
-    installing) icon="${C_GRAY}⋯${C_RST}"; text="installing..."; color="$C_GRAY" ;;
-    pending)    icon="${C_GRAY}○${C_RST}"; text="will install"; color="$C_GRAY" ;;
+    installed)  icon="${C_GRN}✓${C_RST}";  color="$C_GRN"  ;;
+    installing) icon="${C_GRAY}⋯${C_RST}"; color="$C_GRAY" ;;
+    pending)    icon="${C_GRAY}○${C_RST}"; color="$C_GRAY" ;;
   esac
-  printf '  %b  %-34s %b%s%b\n' "$icon" "${ITEMS[$i]}" "$color" "$text" "$C_RST"
+  printf '  %b  %b%s%b\n' "$icon" "$color" "${ITEMS[$i]}" "$C_RST"
 }
 
 # update_row "$i" "$state" — move cursor up to row i, re-draw, move back.
@@ -700,11 +697,11 @@ update_row() {
   fi
 }
 
-# run_install "$i" "_install_fn" — only runs if the item isn't already
-# marked have=true. Shows "installing..." then "installed".
+# run_install "$i" "_install_fn" — flips row to "installing", runs the
+# function, flips to "installed" on success. Assumes the list has already
+# been filtered to only items that actually need installing.
 run_install() {
   local i="$1" fn="$2"
-  [ "${HAVE[$i]}" = "true" ] && return 0
   update_row "$i" "installing"
   echo "[$(date +%H:%M:%S)] run_install: about to exec '$fn'" >> "$INSTALL_LOG"
   local rc=0
@@ -727,33 +724,24 @@ cat <<BANNER
   │     if — impatient futurist     │
   └─────────────────────────────────┘
 
-We're about to install whatever's missing from:
-
 BANNER
 
-# --- Initial list (cursor ends on the line just below the last row) ---
-for i in $(seq 0 $((N - 1))); do
-  if [ "${HAVE[$i]}" = "true" ]; then
-    draw_row "$i" "installed"
-  else
-    draw_row "$i" "pending"
-  fi
-done
-
-# --- Short-circuit if everything already installed ---
-all_installed=true
-for h in "${HAVE[@]}"; do
-  [ "$h" = "true" ] || { all_installed=false; break; }
-done
-if $all_installed; then
-  say ""
+# --- Short-circuit if everything's already installed ---
+if [ "$N" -eq 0 ]; then
   say "All dependencies already installed."
   exit 0
 fi
 
+# --- Initial list (cursor ends on the line just below the last row) ---
+echo "Installing:"
+echo ""
+for i in $(seq 0 $((N - 1))); do
+  draw_row "$i" "pending"
+done
+
 # --- Prompt ---
 echo ""
-if ! prompt_yn "Proceed?" "Y"; then
+if ! prompt_yn "Go?" "Y"; then
   say "No changes made. Goodbye."
   exit 0
 fi
@@ -763,12 +751,9 @@ fi
 printf '\033[2A\033[J'
 
 # --- Run installs (UI rows update in place) ---
-run_install 0 _install_node
-run_install 1 _install_java
-run_install 2 _install_git
-run_install 3 _install_gh
-run_install 4 _install_claude
-run_install 5 _install_chrome
+for i in "${!ITEMS[@]}"; do
+  run_install "$i" "${INSTALL_FNS[$i]}"
+done
 
 # --- Silent end steps (no row, just do the work) ---
 _configure_terminal  >> "$INSTALL_LOG" 2>&1
@@ -778,19 +763,17 @@ _write_zshrc         >> "$INSTALL_LOG" 2>&1
 echo ""
 echo "Next steps:"
 echo ""
-# Step 1 — user sets Chrome as default, then quits Chrome. We block on
-# the Chrome process disappearing before moving on, so the two bullets
-# never fight for attention on screen at the same time.
+# Single bullet; script blocks on Chrome quitting, so the two bullets
+# never appear on screen at the same time (no fight for attention).
 # </dev/tty so `read` sees the real terminal, not the curl|bash pipe.
-echo "  • Set Chrome as default browser"
-printf '    Quit Chrome    %spress return to open Chrome%s\n' "$C_GRAY" "$C_RST"
+printf "  • $(bold 'IMPORTANT:') Set Chrome as default browser -> then quit Chrome    ${C_GRAY}press enter when you're ready${C_RST}\n"
 read -r _ </dev/tty 2>/dev/null || true
 
 if [ "$OS" = "darwin" ] && [ -d "$HOME/Applications/Chrome with Claude Code.app" ]; then
   open "$HOME/Applications/Chrome with Claude Code.app" 2>/dev/null || true
-  # First wait up to 10s for Chrome to appear in the process table
-  # (cold start takes a few seconds). Then block unbounded until the
-  # user quits it. By design: if they don't quit, we don't proceed.
+  # Wait up to 10s for Chrome to appear in the process table (cold start
+  # takes a few seconds). Then block unbounded until the user quits it.
+  # By design: if they don't quit, we don't proceed.
   for _ in $(seq 1 20); do
     pgrep -U "$(id -u)" -f "$HOME/Applications/Google Chrome" >/dev/null 2>&1 && break
     sleep 0.5
@@ -800,6 +783,5 @@ if [ "$OS" = "darwin" ] && [ -d "$HOME/Applications/Chrome with Claude Code.app"
   done
 fi
 
-echo ""
 printf '  • Quit Terminal (Cmd-Q), then click %s on the left of the Dock\n' "$(bold 'IF Terminal')"
 echo ""
