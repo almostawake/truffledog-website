@@ -756,28 +756,23 @@ _configure_workspace >> "$INSTALL_LOG" 2>&1
 _write_zshrc         >> "$INSTALL_LOG" 2>&1
 
 echo ""
-echo "$(bold 'Dependencies installed.')"
+echo "Next steps:"
 echo ""
+# Step 1 — wait for return, then launch Chrome. Its welcome popup has a
+# "Make Chrome the default browser" checkbox the user can action.
+# </dev/tty so `read` sees the real terminal, not the curl|bash pipe.
+printf '  • Set Chrome with Claude Code as default    %spress return%s\n' \
+  "$C_GRAY" "$C_RST"
+read -r _ </dev/tty 2>/dev/null || true
 
-# Launch Chrome with Claude Code so the user lands straight into an
-# agent-ready browser.
 if [ "$OS" = "darwin" ] && [ -d "$HOME/Applications/Chrome with Claude Code.app" ]; then
   open "$HOME/Applications/Chrome with Claude Code.app" 2>/dev/null || true
 fi
 
-# Open a fresh Terminal window at ~/if.
-#
-# Why not `exec zsh -l` in this same terminal? When the installer runs
-# via `curl … | bash`, bash sits inside a pipeline pgrp set up by the
-# user's outer shell. exec'ing zsh inherits that broken pgrp — zsh's
-# interactive job-control setup fails silently, so any program it
-# launches (claude, vim, etc.) runs outside the tty's foreground pgrp
-# and receives zero keyboard input. Even Ctrl-C doesn't reach it.
-#
-# `open -a Terminal.app <path>` spawns a brand-new Terminal window with
-# a clean pty/session/pgrp, cd'd to ~/if. No TCC prompts (LaunchServices,
-# not AppleScript), no pipeline baggage. claude runs normally there.
-if [ "$OS" = "darwin" ]; then
-  open -a Terminal.app "$HOME/if" 2>/dev/null || true
-  echo "Opened a new Terminal window at ~/if — type 'claude' there, then close this window."
-fi
+# Step 2 — tell the user to quit Terminal and relaunch via the Dock. We
+# don't open a new window ourselves (the old exec-zsh trick broke pgrp;
+# the newer 'open -a Terminal.app' trick left two windows on screen and
+# confused people). IF Terminal on the Dock is now the one entry point.
+echo ""
+echo "  • Quit Terminal (Cmd-Q), then click IF Terminal on your Dock"
+echo ""
