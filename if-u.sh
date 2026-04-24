@@ -19,6 +19,7 @@
 #   ~/Library/Application Support/Google/Chrome-Claude/  — our debug-port profile
 #   ~/Library/Application Support/Google/Chrome/     — default profile (just the
 #                                                      DevToolsActivePort crumb we drop)
+#   /tmp/if-install.log                              — per-run install trace
 #
 # Leaves alone:
 #   Xcode Command Line Tools (/Library/Developer/CommandLineTools) — removing
@@ -59,6 +60,7 @@ paths=(
   "$HOME/Applications/Chrome with Claude Code.app"
   "$HOME/Library/Application Support/Google/Chrome-Claude"
   "$HOME/Library/Application Support/Google/Chrome"
+  "/tmp/if-install.log"
 )
 
 say "Wiping 'if' state..."
