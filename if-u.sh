@@ -34,17 +34,26 @@ set -e
 say() { printf '%s\n' "$*"; }
 
 # --- Kill Chrome first so we can delete its profile/app without fighting locks ---
-if pgrep -qf "Google Chrome"; then
+#
+# Important: use pkill -f (matches full command line) rather than
+# killall "Google Chrome" (matches exact executable name only). Chrome
+# spawns helpers — "Google Chrome Helper", "Google Chrome Helper (Renderer)",
+# "Google Chrome Helper (GPU)" — each a distinct executable name, so
+# killall misses them. A pgrep-based while loop that watches "Google Chrome"
+# then sees the helpers still alive and loops forever. Don't do that.
+#
+# Also skipping the `osascript … to quit` dance — it triggers a TCC prompt
+# ("Terminal wants to control Chrome") on fresh accounts, AND will spawn
+# Chrome if it wasn't running, making the problem worse. SIGKILL on a dead
+# browser is harmless; if it's alive, we want it dead anyway for uninstall.
+if pgrep -f "Google Chrome" >/dev/null 2>&1; then
   say "Quitting Chrome..."
-  osascript -e 'tell application "Google Chrome" to quit' 2>/dev/null || true
+  pkill -9 -f "Google Chrome" 2>/dev/null || true
+  # Bounded wait so the script always makes forward progress.
   for i in $(seq 1 10); do
-    pgrep -qf "Google Chrome" || break
+    pgrep -f "Google Chrome" >/dev/null 2>&1 || break
     sleep 0.5
   done
-  if pgrep -qf "Google Chrome"; then
-    killall -9 "Google Chrome" 2>/dev/null || true
-    while pgrep -qf "Google Chrome"; do sleep 0.5; done
-  fi
 fi
 
 paths=(
