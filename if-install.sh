@@ -362,15 +362,11 @@ CHROMEPLIST
 
   cat > "$launcher_app/Contents/MacOS/Chrome with Claude Code" <<CHROMELAUNCH
 #!/bin/bash
-osascript -e 'tell application "Google Chrome" to quit' 2>/dev/null
-for i in \$(seq 1 10); do
-  pgrep -qf 'Google Chrome' || break
-  sleep 0.5
-done
-if pgrep -qf 'Google Chrome'; then
-  killall -9 'Google Chrome' 2>/dev/null
-  while pgrep -qf 'Google Chrome'; do sleep 0.5; done
-fi
+# No kill-Chrome dance needed: Chrome with a different --user-data-dir
+# coexists fine with the user's regular Chrome. If Chrome-Claude is
+# already running, Chrome's process-singleton sends activation to the
+# existing instance; the new process exits immediately. Debug port
+# stays alive either way.
 
 PROFILE="\$HOME/Library/Application Support/Google/Chrome-Claude"
 
@@ -379,10 +375,16 @@ PROFILE="\$HOME/Library/Application Support/Google/Chrome-Claude"
   --silent-debugger-extension-api \\
   --user-data-dir="\$PROFILE" &>/dev/null &
 
+# Wait up to 10s for the debug port to accept connections. When Chrome-Claude
+# is already running, this returns near-instantly. Cold start takes ~2-4s.
 for i in \$(seq 1 20); do
   sleep 0.5
   curl -s http://localhost:9222/json/version >/dev/null 2>&1 && break
 done
+
+# Drop a DevToolsActivePort file where the chrome-devtools MCP server
+# looks for it (mirrors Chrome's own default behavior for its default
+# profile so MCP discovery "just works").
 mkdir -p "\$HOME/Library/Application Support/Google/Chrome"
 wspath=\$(curl -s http://localhost:9222/json/version | \\
   perl -MJSON::PP -e 'my \$j=decode_json(join("",<STDIN>)); my \$u=\$j->{webSocketDebuggerUrl} // ""; my (\$p) = \$u =~ m{:9222(.*)}; print \$p // ""')

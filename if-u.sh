@@ -33,25 +33,30 @@ set -e
 
 say() { printf '%s\n' "$*"; }
 
-# --- Kill Chrome first so we can delete its profile/app without fighting locks ---
+# --- Kill our Chrome first so we can delete its profile/app without fighting locks ---
 #
-# Important: use pkill -f (matches full command line) rather than
-# killall "Google Chrome" (matches exact executable name only). Chrome
-# spawns helpers — "Google Chrome Helper", "Google Chrome Helper (Renderer)",
-# "Google Chrome Helper (GPU)" — each a distinct executable name, so
-# killall misses them. A pgrep-based while loop that watches "Google Chrome"
-# then sees the helpers still alive and loops forever. Don't do that.
+# Scope carefully:
+#   -U $(id -u)              only the current user's processes (pgrep/pkill
+#                            see every user's processes by default — fast
+#                            user switching keeps other sessions' Chrome
+#                            alive and unkillable from here).
+#   -f $HOME/Applications/   only the Chrome we installed, not the user's
+#                            personal Chrome at /Applications/Google Chrome.app.
 #
-# Also skipping the `osascript … to quit` dance — it triggers a TCC prompt
-# ("Terminal wants to control Chrome") on fresh accounts, AND will spawn
-# Chrome if it wasn't running, making the problem worse. SIGKILL on a dead
-# browser is harmless; if it's alive, we want it dead anyway for uninstall.
-if pgrep -f "Google Chrome" >/dev/null 2>&1; then
+# Using -f (match full command line) rather than killall (exact executable
+# name) catches helpers — "Google Chrome Helper", "Helper (Renderer)", "(GPU)"
+# — which killall misses, causing the old while-pgrep loop to spin forever.
+#
+# Skipping `osascript … to quit` deliberately: it triggers a TCC prompt
+# ("Terminal wants to control Chrome") on fresh accounts, and will spawn
+# Chrome if it wasn't running, making the whole problem worse.
+CHROME_MATCH="$HOME/Applications/Google Chrome"
+if pgrep -U "$(id -u)" -f "$CHROME_MATCH" >/dev/null 2>&1; then
   say "Quitting Chrome..."
-  pkill -9 -f "Google Chrome" 2>/dev/null || true
+  pkill -9 -U "$(id -u)" -f "$CHROME_MATCH" 2>/dev/null || true
   # Bounded wait so the script always makes forward progress.
   for i in $(seq 1 10); do
-    pgrep -f "Google Chrome" >/dev/null 2>&1 || break
+    pgrep -U "$(id -u)" -f "$CHROME_MATCH" >/dev/null 2>&1 || break
     sleep 0.5
   done
 fi
