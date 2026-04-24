@@ -240,35 +240,20 @@ _install_claude() {
 
 # Chrome Stable + Chrome with Claude Code.app launcher.
 _install_chrome() {
-  # DEBUG level 2: write step markers to files (so they're independent of
-  # stdout/stderr redirection), echo entry to /dev/tty (bypasses our redirect
-  # so user sees it immediately), and xtrace every command.
-  date +"entered at %H:%M:%S" > /tmp/chrome-step-00-entered
-  echo ">>> DEBUG: entered _install_chrome" > /dev/tty 2>/dev/null || true
-
-  export PS4='+ [\t] chrome: '
-  set -x
-
   _log() { echo "[$(date +%H:%M:%S)] chrome: $*"; }
-
-  date +"step-01 after set -x at %H:%M:%S" > /tmp/chrome-step-01-after-set-x
-  _log "start _install_chrome"
-  date > /tmp/chrome-step-02-before-darwin-check
+  _log "start"
   [ "$OS" = "darwin" ] || { _log "not darwin, skipping"; return 0; }
-  date > /tmp/chrome-step-03-after-darwin-check
 
   # 1. Install Chrome.app (skip if already present anywhere)
   local chrome_app=""
   [ -d "/Applications/Google Chrome.app" ]      && chrome_app="/Applications/Google Chrome.app"
   [ -d "$HOME/Applications/Google Chrome.app" ] && chrome_app="$HOME/Applications/Google Chrome.app"
   _log "existing chrome_app = [$chrome_app]"
-  date > /tmp/chrome-step-04-after-existing-check
 
   if [ -z "$chrome_app" ]; then
     local dmg; dmg=$(mktemp -u).dmg
     local mountpoint
     _log "downloading Chrome DMG to $dmg (~200MB)…"
-    date > /tmp/chrome-step-05-before-curl
     # -f: fail on HTTP errors, -S: show errors even when silent, -L: follow
     # redirects, --progress-bar: show one-line progress (goes to stderr →
     # into our log, so each run grows the log by a few hundred lines — fine
@@ -489,7 +474,12 @@ update_row() {
   printf '\033[%dA\r\033[K' "$up"
   draw_row "$i" "$state"
   local down=$((N - i - 1))
-  [ "$down" -gt 0 ] && printf '\033[%dB\r' "$down"
+  # Using `if ... fi` rather than `[ ... ] && ...` — the latter's compound
+  # exit is non-zero when the test fails, which under `set -e` would cause
+  # the caller to exit. Nasty for the LAST row (down=0).
+  if [ "$down" -gt 0 ]; then
+    printf '\033[%dB\r' "$down"
+  fi
 }
 
 # run_install "$i" "_install_fn" — only runs if the item isn't already
@@ -555,19 +545,12 @@ fi
 printf '\033[2A\033[J'
 
 # --- Run installs (UI rows update in place) ---
-echo "[$(date +%H:%M:%S)] main: about to run_install 0 (node)"     >> "$INSTALL_LOG"
 run_install 0 _install_node
-echo "[$(date +%H:%M:%S)] main: about to run_install 1 (java)"     >> "$INSTALL_LOG"
 run_install 1 _install_java
-echo "[$(date +%H:%M:%S)] main: about to run_install 2 (git)"      >> "$INSTALL_LOG"
 run_install 2 _install_git
-echo "[$(date +%H:%M:%S)] main: about to run_install 3 (gh)"       >> "$INSTALL_LOG"
 run_install 3 _install_gh
-echo "[$(date +%H:%M:%S)] main: about to run_install 4 (claude)"   >> "$INSTALL_LOG"
 run_install 4 _install_claude
-echo "[$(date +%H:%M:%S)] main: about to run_install 5 (chrome)"   >> "$INSTALL_LOG"
 run_install 5 _install_chrome
-echo "[$(date +%H:%M:%S)] main: all run_installs done"             >> "$INSTALL_LOG"
 
 # --- Silent end steps (no row, just do the work) ---
 _configure_terminal >> "$INSTALL_LOG" 2>&1
