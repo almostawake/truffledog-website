@@ -443,19 +443,26 @@ _configure_workspace() {
   [ "$OS" = "darwin" ] || return 0
   mkdir -p "$HOME/if"
 
-  # Build IF Terminal.app — a Dock-pinnable launcher that opens a new
-  # Terminal window cd'd to ~/if. Why a real .app bundle and not Terminal.app
-  # itself: clicking Terminal.app's Dock icon when Terminal is already
-  # running just focuses it (no new window). Why not a .command file: the
-  # Dock shows the generic script icon and uses the filename as label —
-  # unrecognizable. With our own .app we control both.
+  # Build IF Terminal.app via osacompile — a proper AppleScript-applet
+  # bundle whose executable IS a native Mach-O binary (the system applet
+  # runtime). Why not a shell-script .app with Info.plist tricks:
+  # macOS probes the Contents/MacOS file for a Mach-O header to decide
+  # whether to offer Rosetta; scripts fail that probe and trigger the
+  # Rosetta prompt even with LSRequiresNativeExecution + arm64-only
+  # LSArchitecturePriority. osacompile sidesteps the whole issue — the
+  # applet binary is universal (arm64 + x86_64) and Just Works.
+  # The applet body uses `do shell script` + `open -a Terminal.app`,
+  # which goes through LaunchServices (no Apple Events TCC prompt).
   local if_term="$HOME/Applications/IF Terminal.app"
-  mkdir -p "$if_term/Contents/MacOS"
-  mkdir -p "$if_term/Contents/Resources"
+  rm -rf "$if_term"
+  local tmp_scpt; tmp_scpt=$(mktemp).scpt
+  cat > "$tmp_scpt" <<'IFTERMSCPT'
+do shell script "open -a Terminal.app ~/if"
+IFTERMSCPT
+  osacompile -o "$if_term" "$tmp_scpt"
+  rm -f "$tmp_scpt"
 
-  # Copy Terminal.app's icon. Moved to /System/Applications in Catalina+;
-  # fall back to the pre-Catalina location, then to mdfind if neither is
-  # where we expect (e.g. future macOS layout changes).
+  # Replace the default applet icon with Terminal.app's.
   local term_icns=""
   for candidate in \
       "/System/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns" \
@@ -468,54 +475,13 @@ _configure_workspace() {
     [ -n "$term_app" ] && [ -f "$term_app/Contents/Resources/Terminal.icns" ] \
       && term_icns="$term_app/Contents/Resources/Terminal.icns"
   fi
-  [ -n "$term_icns" ] && cp "$term_icns" "$if_term/Contents/Resources/app.icns"
+  [ -n "$term_icns" ] && cp "$term_icns" "$if_term/Contents/Resources/applet.icns"
 
-  cat > "$if_term/Contents/Info.plist" <<'IFTERMPLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleName</key>
-  <string>IF Terminal</string>
-  <key>CFBundleDisplayName</key>
-  <string>IF Terminal</string>
-  <key>CFBundleExecutable</key>
-  <string>IF Terminal</string>
-  <key>CFBundleIconFile</key>
-  <string>app</string>
-  <key>CFBundleIdentifier</key>
-  <string>au.truffledog.if-terminal</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-  <key>CFBundleVersion</key>
-  <string>1.0</string>
-  <key>LSMinimumSystemVersion</key>
-  <string>10.15</string>
-  <!-- Without these two keys macOS probes the Mach-O header of the
-       executable, finds none (it's a shell script), and falls back to
-       offering Rosetta. arm64-only (not arm64+x86_64) matches the
-       Chrome launcher bundle and keeps macOS from deciding to run the
-       app under Rosetta on Apple Silicon. For a shell-script .app the
-       actual arch of execution is whatever /bin/bash is (universal
-       binary, so arm64 on M-series). -->
-  <key>LSRequiresNativeExecution</key>
-  <true/>
-  <key>LSArchitecturePriority</key>
-  <array>
-    <string>arm64</string>
-  </array>
-</dict>
-</plist>
-IFTERMPLIST
+  # Set a stable bundle identifier (osacompile auto-generates a weird
+  # com.apple.ScriptEditor.id.* one by default).
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier au.truffledog.if-terminal" \
+    "$if_term/Contents/Info.plist" 2>/dev/null || true
 
-  # The "executable" just asks LaunchServices to open ~/if in Terminal.
-  # Terminal always creates a new window when asked to open a folder, and
-  # its shell starts cd'd to that folder. No AppleScript (no TCC prompts).
-  cat > "$if_term/Contents/MacOS/IF Terminal" <<'IFTERMEXEC'
-#!/bin/bash
-open -a Terminal.app "$HOME/if"
-IFTERMEXEC
-  chmod +x "$if_term/Contents/MacOS/IF Terminal"
   # Bumping mtime forces LaunchServices/Dock to re-register the icon if we
   # rebuilt the bundle after a prior install.
   touch "$if_term"
@@ -582,22 +548,42 @@ IFTERMEXEC
   killall Dock 2>/dev/null || true
 
   # === Services: register, then force-enable ===
-  # pbs -update indexes ~/Library/Services and writes default-disabled
-  # entries for anything new (our Claude Code at Folder workflow). Short
-  # sleep lets pbs finish before we overwrite those entries with our
-  # enabled version. Schema matches what macOS writes when the user
-  # manually ticks the checkbox (single presentation_modes dict with
-  # ContextMenu/FinderPreview/ServicesMenu/TouchBar flags). No further
-  # pbs -update after this — would clobber our writes again.
+  # pbs -update scans ~/Library/Services and registers the workflow with
+  # pbs, writing default-disabled NSServicesStatus entries through
+  # cfprefsd.
   /System/Library/CoreServices/pbs -update 2>/dev/null || true
   sleep 0.5
-  local svc_enable='{ "presentation_modes" = { "ContextMenu" = 1; "FinderPreview" = 1; "ServicesMenu" = 1; "TouchBar" = 0; }; }'
-  defaults write pbs NSServicesStatus -dict-add \
-    "com.apple.Terminal - Open Terminal at Folder - openTerminal" "$svc_enable" \
-    2>/dev/null || true
-  defaults write pbs NSServicesStatus -dict-add \
-    "(null) - Claude Code at Folder - runWorkflowAsService" "$svc_enable" \
-    2>/dev/null || true
+
+  # Flush cfprefsd so its in-memory cache of pbs.plist is discarded (any
+  # pending pbs writes land on disk as it exits via SIGTERM). Launchd
+  # respawns cfprefsd with an empty cache; its next query re-reads disk.
+  killall cfprefsd 2>/dev/null || true
+  sleep 0.3
+
+  # Edit pbs.plist directly on disk with PlistBuddy. We tried the
+  # `defaults write -dict-add` route (goes through cfprefsd) and watched
+  # it get silently reverted — the cfprefsd cache and pbs's own writes
+  # fight each other. Going straight to disk wins. Schema matches what
+  # macOS writes when the user manually ticks the Quick Actions checkbox.
+  local pbs_plist="$HOME/Library/Preferences/pbs.plist"
+  if [ -f "$pbs_plist" ]; then
+    local key
+    for key in \
+        "com.apple.Terminal - Open Terminal at Folder - openTerminal" \
+        "(null) - Claude Code at Folder - runWorkflowAsService" ; do
+      /usr/libexec/PlistBuddy -c "Delete :NSServicesStatus:'${key}'" "$pbs_plist" 2>/dev/null || true
+      /usr/libexec/PlistBuddy -c "Add :NSServicesStatus:'${key}' dict" "$pbs_plist"
+      /usr/libexec/PlistBuddy -c "Add :NSServicesStatus:'${key}':presentation_modes dict" "$pbs_plist"
+      /usr/libexec/PlistBuddy -c "Add :NSServicesStatus:'${key}':presentation_modes:ContextMenu integer 1" "$pbs_plist"
+      /usr/libexec/PlistBuddy -c "Add :NSServicesStatus:'${key}':presentation_modes:FinderPreview integer 1" "$pbs_plist"
+      /usr/libexec/PlistBuddy -c "Add :NSServicesStatus:'${key}':presentation_modes:ServicesMenu integer 1" "$pbs_plist"
+      /usr/libexec/PlistBuddy -c "Add :NSServicesStatus:'${key}':presentation_modes:TouchBar integer 0" "$pbs_plist"
+    done
+  fi
+
+  # Flush cfprefsd once more so its next pbs query reads the updated disk
+  # file, not the pre-edit cache it re-hydrated during step 3.
+  killall cfprefsd 2>/dev/null || true
 }
 
 # Silent end-step: pre-configure Terminal.app so Option-Enter inserts a
