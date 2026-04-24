@@ -509,10 +509,12 @@ while http_recv; do
         EMAIL=$(printf '%s' "$USERINFO" | json_extract email)
         [ -z "$EMAIL" ] && EMAIL="unknown"
 
-        # Save creds
-        mkdir -p ~/.if
-        chmod 700 ~/.if
-        CRED_PATH="$HOME/.if/${EMAIL}.json"
+        # Save creds under ~/.if/creds/ (dedicated subdir keeps the
+        # top-level ~/.if clean for installed tooling; one creds file
+        # per Google account, named by email).
+        mkdir -p ~/.if/creds
+        chmod 700 ~/.if ~/.if/creds
+        CRED_PATH="$HOME/.if/creds/${EMAIL}.json"
         cat > "$CRED_PATH" <<JSON
 {
   "email": "$EMAIL",
