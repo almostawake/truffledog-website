@@ -1,9 +1,10 @@
 #!/bin/zsh
-# CLAUDE EDIT NOTICE: When editing any file served from truffledog.au
-# (zshrc-remote, if-install.sh, if-uninstall.sh, if-check.sh,
-# if-claude.md), bump ZSHRC_VERSION below by 1. Shows in the user's
-# prompt as [v38] etc. — their signal that the push went live.
-ZSHRC_VERSION="48"
+# CLAUDE EDIT NOTICE: When you change THIS file (zshrc-remote), bump
+# ZSHRC_VERSION below by 1. Shows in the user's prompt as [v46] etc. —
+# their signal that the zshrc push went live. Do NOT bump for edits to
+# if-install.sh, if-u.sh, if-check.sh, if-claude.md — those don't
+# affect the user's shell and the counter would drift meaninglessly.
+ZSHRC_VERSION="46"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"

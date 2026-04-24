@@ -6,9 +6,10 @@
 # Usage:
 #   curl -fsSL https://truffledog.au/if-install.sh | bash
 #
-# CLAUDE EDIT NOTICE: When editing this file, bump ZSHRC_VERSION in
-# zshrc-remote by 1. Shows in user's prompt as [v38] etc. — their signal
-# that the push went live.
+# CLAUDE EDIT NOTICE: Don't bump ZSHRC_VERSION in zshrc-remote for
+# changes to THIS file — that counter is for user-shell changes only
+# (it shows in their prompt, so bumping it without a zshrc change is
+# misleading).
 #
 set -e
 
@@ -609,11 +610,19 @@ if [ "$OS" = "darwin" ] && [ -d "$HOME/Applications/Chrome with Claude Code.app"
   open "$HOME/Applications/Chrome with Claude Code.app" 2>/dev/null || true
 fi
 
-# Drop user into a fresh login zsh so PATH/JAVA_HOME are live without
-# opening a new terminal. Land them in ~/if so `claude` runs against an
-# empty dir (no TCC prompts for Documents/Downloads/Photos/Reminders etc.).
-# 'exit' returns to their original shell.
-if [ -t 1 ] && [ -r /dev/tty ]; then
-  cd "$HOME/if" 2>/dev/null || true
-  exec zsh -l </dev/tty
+# Open a fresh Terminal window at ~/if.
+#
+# Why not `exec zsh -l` in this same terminal? When the installer runs
+# via `curl … | bash`, bash sits inside a pipeline pgrp set up by the
+# user's outer shell. exec'ing zsh inherits that broken pgrp — zsh's
+# interactive job-control setup fails silently, so any program it
+# launches (claude, vim, etc.) runs outside the tty's foreground pgrp
+# and receives zero keyboard input. Even Ctrl-C doesn't reach it.
+#
+# `open -a Terminal.app <path>` spawns a brand-new Terminal window with
+# a clean pty/session/pgrp, cd'd to ~/if. No TCC prompts (LaunchServices,
+# not AppleScript), no pipeline baggage. claude runs normally there.
+if [ "$OS" = "darwin" ]; then
+  open -a Terminal.app "$HOME/if" 2>/dev/null || true
+  echo "Opened a new Terminal window at ~/if — type 'claude' there."
 fi
