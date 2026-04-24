@@ -397,15 +397,18 @@ _dock_apps_remove_url() {
 
 # Dock helper: prepend a new :persistent-apps entry at slot 0 for URL $1.
 # Used in reverse order so final slot assignment lines up left-to-right.
+# PlistBuddy prints to stderr on failure; we keep stderr visible so the
+# install log captures why an insert didn't land.
 _dock_apps_insert_at_zero() {
   local url="$1"
   local plist="$HOME/Library/Preferences/com.apple.dock.plist"
-  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0 dict" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data dict" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data:file-data dict" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data:file-data:_CFURLString string ${url}" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data:file-data:_CFURLStringType integer 15" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-type string file-tile" "$plist" 2>/dev/null || true
+  echo "_dock_apps_insert_at_zero: $url"
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0 dict" "$plist" || true
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data dict" "$plist" || true
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data:file-data dict" "$plist" || true
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data:file-data:_CFURLString string ${url}" "$plist" || true
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-data:file-data:_CFURLStringType integer 15" "$plist" || true
+  /usr/libexec/PlistBuddy -c "Add :persistent-apps:0:tile-type string file-tile" "$plist" || true
   return 0
 }
 
@@ -432,23 +435,43 @@ exec /bin/zsh -l
 IFCMD
   chmod +x "$IF_HOME/bin/shell.command"
 
+  # === Pass 1: all `defaults write` calls ===
+  # These go to cfprefsd's in-memory cache, not directly to disk.
+
   # (A) New Finder windows default to ~/if — covers right-click New Folder
   #     + right-click New Terminal at Folder workflow.
   defaults write com.apple.finder NewWindowTarget -string "PfLo" 2>/dev/null || true
   defaults write com.apple.finder NewWindowTargetPath -string "file://$HOME/if/" 2>/dev/null || true
 
-  # (B) Pin ~/if as a folder stack on the Dock (right side) for a visible anchor.
+  # (B) Pin ~/if as a folder stack on the Dock (right side) for a visible
+  #     anchor. Check via `defaults read` (cfprefsd-aware) not PlistBuddy
+  #     (disk-only) so re-runs don't double-add.
   local url_folder="file://$HOME/if/"
-  # Skip the add if an entry for ~/if is already present (re-runs stay idempotent).
-  if ! /usr/libexec/PlistBuddy -c "Print :persistent-others" \
-        "$HOME/Library/Preferences/com.apple.dock.plist" 2>/dev/null \
-        | grep -qF "$url_folder"; then
+  if ! defaults read com.apple.dock persistent-others 2>/dev/null | grep -qF "$url_folder"; then
     defaults write com.apple.dock persistent-others -array-add \
       "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${url_folder}</string><key>_CFURLStringType</key><integer>15</integer></dict></dict><key>tile-type</key><string>directory-tile</string></dict>" \
       2>/dev/null || true
   fi
 
-  # (C) Dock left side, immediately right of Finder:
+  # (C) Enable "New Terminal at Folder" as a Finder right-click item.
+  defaults write pbs NSServicesStatus -dict-add \
+    "com.apple.Terminal - Open Terminal at Folder - openTerminal" \
+    '{ "enabled_context_menu" = 1; "enabled_services_menu" = 1;
+       "presentation_modes" = { "ContextMenu" = 1; "ServicesMenu" = 1; }; }' \
+    2>/dev/null || true
+
+  # === cfprefsd flush ===
+  # Force cfprefsd to flush its cache to disk before we touch the dock plist
+  # with PlistBuddy. Without this, PlistBuddy's Save overwrites the file
+  # with its stale on-disk view, losing everything we just wrote with
+  # `defaults`. killall sends SIGTERM → cfprefsd flushes then exits →
+  # launchd respawns it; the brief sleep gives the file write time to land.
+  killall cfprefsd 2>/dev/null || true
+  sleep 0.3
+
+  # === Pass 2: PlistBuddy edits on disk ===
+
+  # (D) Dock left side, immediately right of Finder:
   #       slot 0 — Chrome with Claude Code (the debug-port-enabled launcher)
   #       slot 1 — shell.command (opens a new Terminal in ~/if)
   #     Pattern: remove any existing matches, then prepend at slot 0 in
@@ -459,13 +482,6 @@ IFCMD
   _dock_apps_remove_url "$url_shell"
   _dock_apps_insert_at_zero "$url_shell"
   _dock_apps_insert_at_zero "$url_chrome"
-
-  # Enable "New Terminal at Folder" as a Finder right-click item.
-  defaults write pbs NSServicesStatus -dict-add \
-    "com.apple.Terminal - Open Terminal at Folder - openTerminal" \
-    '{ "enabled_context_menu" = 1; "enabled_services_menu" = 1;
-       "presentation_modes" = { "ContextMenu" = 1; "ServicesMenu" = 1; }; }' \
-    2>/dev/null || true
 
   # Apply changes.
   # Don't killall Finder — relaunch steals focus from Terminal (Claude's
@@ -683,5 +699,5 @@ fi
 # not AppleScript), no pipeline baggage. claude runs normally there.
 if [ "$OS" = "darwin" ]; then
   open -a Terminal.app "$HOME/if" 2>/dev/null || true
-  echo "Opened a new Terminal window at ~/if — type 'claude' there."
+  echo "Opened a new Terminal window at ~/if — type 'claude' there, then close this window."
 fi
