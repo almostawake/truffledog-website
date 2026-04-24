@@ -529,17 +529,7 @@ IFTERMEXEC
   defaults write com.apple.finder NewWindowTarget -string "PfLo" 2>/dev/null || true
   defaults write com.apple.finder NewWindowTargetPath -string "file://$HOME/if/" 2>/dev/null || true
 
-  # (B) Pin ~/if as a folder stack on the Dock (right side) for a visible
-  #     anchor. Check via `defaults read` (cfprefsd-aware) not PlistBuddy
-  #     (disk-only) so re-runs don't double-add.
-  local url_folder="file://$HOME/if/"
-  if ! defaults read com.apple.dock persistent-others 2>/dev/null | grep -qF "$url_folder"; then
-    defaults write com.apple.dock persistent-others -array-add \
-      "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${url_folder}</string><key>_CFURLStringType</key><integer>15</integer></dict></dict><key>tile-type</key><string>directory-tile</string></dict>" \
-      2>/dev/null || true
-  fi
-
-  # (C) Enable "New Terminal at Folder" as a Finder right-click item.
+  # (B) Enable "New Terminal at Folder" as a Finder right-click item.
   defaults write pbs NSServicesStatus -dict-add \
     "com.apple.Terminal - Open Terminal at Folder - openTerminal" \
     '{ "enabled_context_menu" = 1; "enabled_services_menu" = 1;
@@ -557,7 +547,7 @@ IFTERMEXEC
 
   # === Pass 2: PlistBuddy edits on disk ===
 
-  # (D) Dock left side, immediately right of Finder:
+  # (C) Dock left side, immediately right of Finder:
   #       slot 0 — Chrome with Claude Code (the debug-port-enabled launcher)
   #       slot 1 — IF Terminal (opens a new Terminal in ~/if)
   #     Pattern: remove any existing matches, then prepend at slot 0 in
