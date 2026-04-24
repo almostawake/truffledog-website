@@ -240,9 +240,11 @@ _install_claude() {
 
 # Chrome Stable + Chrome with Claude Code.app launcher.
 _install_chrome() {
-  # Verbose tracing for this step specifically — every command and every
-  # piece of output lands in $INSTALL_LOG. If the step hangs or fails,
-  # `tail -n 40 /tmp/if-install.log` will show exactly where.
+  # DEBUG: xtrace every command in this function + timestamps. Both xtrace
+  # output (via PS4) and `_log` lines go to stderr → INSTALL_LOG.
+  export PS4='+ [\t] chrome: '
+  set -x
+
   _log() { echo "[$(date +%H:%M:%S)] chrome: $*"; }
 
   _log "start _install_chrome"
@@ -540,12 +542,19 @@ fi
 printf '\033[2A\033[J'
 
 # --- Run installs (UI rows update in place) ---
+echo "[$(date +%H:%M:%S)] main: about to run_install 0 (node)"     >> "$INSTALL_LOG"
 run_install 0 _install_node
+echo "[$(date +%H:%M:%S)] main: about to run_install 1 (java)"     >> "$INSTALL_LOG"
 run_install 1 _install_java
+echo "[$(date +%H:%M:%S)] main: about to run_install 2 (git)"      >> "$INSTALL_LOG"
 run_install 2 _install_git
+echo "[$(date +%H:%M:%S)] main: about to run_install 3 (gh)"       >> "$INSTALL_LOG"
 run_install 3 _install_gh
+echo "[$(date +%H:%M:%S)] main: about to run_install 4 (claude)"   >> "$INSTALL_LOG"
 run_install 4 _install_claude
+echo "[$(date +%H:%M:%S)] main: about to run_install 5 (chrome)"   >> "$INSTALL_LOG"
 run_install 5 _install_chrome
+echo "[$(date +%H:%M:%S)] main: all run_installs done"             >> "$INSTALL_LOG"
 
 # --- Silent end steps (no row, just do the work) ---
 _configure_terminal >> "$INSTALL_LOG" 2>&1
