@@ -49,6 +49,7 @@ fi
 
 paths=(
   "$HOME/.if"
+  "$HOME/if"
   "$HOME/.npm"
   "$HOME/.claude"
   "$HOME/.claude.json"
@@ -84,6 +85,43 @@ if [ -f "$TBAK" ]; then
   mv "$TBAK" "$HOME/Library/Preferences/com.apple.Terminal.plist"
   say "  restored com.apple.Terminal.plist from .bak"
 fi
+
+# Undo Finder "new window opens in ~/if"
+defaults delete com.apple.finder NewWindowTarget 2>/dev/null && \
+  say "  cleared Finder NewWindowTarget" || true
+defaults delete com.apple.finder NewWindowTargetPath 2>/dev/null && \
+  say "  cleared Finder NewWindowTargetPath" || true
+killall Finder 2>/dev/null || true
+
+# Remove the ~/if entry we added to Dock persistent-others (leaves other
+# dock entries alone). PlistBuddy iterates last→first so deletes don't
+# shift indices underneath us.
+DOCK_PLIST="$HOME/Library/Preferences/com.apple.dock.plist"
+if [ -f "$DOCK_PLIST" ]; then
+  TARGET_URL="file://$HOME/if/"
+  i=0
+  while /usr/libexec/PlistBuddy -c "Print :persistent-others:$i" "$DOCK_PLIST" >/dev/null 2>&1; do
+    i=$((i+1))
+  done
+  i=$((i-1))
+  removed=0
+  while [ $i -ge 0 ]; do
+    url=$(/usr/libexec/PlistBuddy -c "Print :persistent-others:$i:tile-data:file-data:_CFURLString" "$DOCK_PLIST" 2>/dev/null || true)
+    if [ "$url" = "$TARGET_URL" ]; then
+      /usr/libexec/PlistBuddy -c "Delete :persistent-others:$i" "$DOCK_PLIST" 2>/dev/null || true
+      removed=$((removed+1))
+    fi
+    i=$((i-1))
+  done
+  [ $removed -gt 0 ] && say "  removed $removed Dock entry/entries for ~/if"
+fi
+killall Dock 2>/dev/null || true
+
+# Undo "New Terminal at Folder" Services toggle. Fresh accounts have no
+# custom services state, so nuking the whole NSServicesStatus dict is safe.
+defaults delete pbs NSServicesStatus 2>/dev/null && \
+  say "  cleared pbs NSServicesStatus" || true
+/System/Library/CoreServices/pbs -update 2>/dev/null || true
 
 # Mop up now-empty parent dirs so the home folder matches a fresh account.
 # rmdir is safe — it only removes dirs that are actually empty (so if the

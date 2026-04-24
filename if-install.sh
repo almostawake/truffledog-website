@@ -373,6 +373,46 @@ CHROMELAUNCH
   touch "$launcher_app"
 }
 
+# Silent end-step: create ~/if workspace, point Finder there, pin to Dock,
+# enable "New Terminal at Folder" in Finder right-click.
+#
+# Why ~/if and not ~/: running claude in ~ makes it enumerate Documents,
+# Downloads, Photos Library, Reminders group-container, etc., which fires
+# macOS TCC prompts ("Terminal wants to access…"). An empty work dir avoids
+# all of that.
+_configure_workspace() {
+  [ "$OS" = "darwin" ] || return 0
+  mkdir -p "$HOME/if"
+
+  # (A) New Finder windows default to ~/if — covers right-click New Folder
+  #     + right-click New Terminal at Folder workflow.
+  defaults write com.apple.finder NewWindowTarget -string "PfLo" 2>/dev/null || true
+  defaults write com.apple.finder NewWindowTargetPath -string "file://$HOME/if/" 2>/dev/null || true
+
+  # (B) Pin ~/if as a folder stack on the Dock (right side) for a visible anchor.
+  local url="file://$HOME/if/"
+  # Skip the add if an entry for ~/if is already present (re-runs stay idempotent).
+  if ! /usr/libexec/PlistBuddy -c "Print :persistent-others" \
+        "$HOME/Library/Preferences/com.apple.dock.plist" 2>/dev/null \
+        | grep -qF "$url"; then
+    defaults write com.apple.dock persistent-others -array-add \
+      "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${url}</string><key>_CFURLStringType</key><integer>15</integer></dict></dict><key>tile-type</key><string>directory-tile</string></dict>" \
+      2>/dev/null || true
+  fi
+
+  # Enable "New Terminal at Folder" as a Finder right-click item.
+  defaults write pbs NSServicesStatus -dict-add \
+    "com.apple.Terminal - Open Terminal at Folder - openTerminal" \
+    '{ "enabled_context_menu" = 1; "enabled_services_menu" = 1;
+       "presentation_modes" = { "ContextMenu" = 1; "ServicesMenu" = 1; }; }' \
+    2>/dev/null || true
+
+  # Apply changes.
+  killall Finder 2>/dev/null || true
+  killall Dock 2>/dev/null || true
+  /System/Library/CoreServices/pbs -update 2>/dev/null || true
+}
+
 # Silent end-step: pre-configure Terminal.app so Option-Enter inserts a
 # newline (what "shift-enter" in Claude Code actually needs). Writes to the
 # user's active Terminal profile.
@@ -553,8 +593,9 @@ run_install 4 _install_claude
 run_install 5 _install_chrome
 
 # --- Silent end steps (no row, just do the work) ---
-_configure_terminal >> "$INSTALL_LOG" 2>&1
-_write_zshrc        >> "$INSTALL_LOG" 2>&1
+_configure_terminal  >> "$INSTALL_LOG" 2>&1
+_configure_workspace >> "$INSTALL_LOG" 2>&1
+_write_zshrc         >> "$INSTALL_LOG" 2>&1
 
 echo ""
 echo "$(bold 'Dependencies installed.')"
@@ -567,7 +608,10 @@ if [ "$OS" = "darwin" ] && [ -d "$HOME/Applications/Chrome with Claude Code.app"
 fi
 
 # Drop user into a fresh login zsh so PATH/JAVA_HOME are live without
-# opening a new terminal. 'exit' returns to their original shell.
+# opening a new terminal. Land them in ~/if so `claude` runs against an
+# empty dir (no TCC prompts for Documents/Downloads/Photos/Reminders etc.).
+# 'exit' returns to their original shell.
 if [ -t 1 ] && [ -r /dev/tty ]; then
+  cd "$HOME/if" 2>/dev/null || true
   exec zsh -l </dev/tty
 fi
