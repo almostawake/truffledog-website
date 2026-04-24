@@ -493,14 +493,16 @@ _configure_workspace() {
   <string>10.15</string>
   <!-- Without these two keys macOS probes the Mach-O header of the
        executable, finds none (it's a shell script), and falls back to
-       offering Rosetta. Telling LaunchServices explicitly to run native
-       on arm64/x86_64 makes the Rosetta prompt go away. -->
+       offering Rosetta. arm64-only (not arm64+x86_64) matches the
+       Chrome launcher bundle and keeps macOS from deciding to run the
+       app under Rosetta on Apple Silicon. For a shell-script .app the
+       actual arch of execution is whatever /bin/bash is (universal
+       binary, so arm64 on M-series). -->
   <key>LSRequiresNativeExecution</key>
   <true/>
   <key>LSArchitecturePriority</key>
   <array>
     <string>arm64</string>
-    <string>x86_64</string>
   </array>
 </dict>
 </plist>
@@ -540,23 +542,11 @@ IFTERMEXEC
   defaults write com.apple.finder NewWindowTarget -string "PfLo" 2>/dev/null || true
   defaults write com.apple.finder NewWindowTargetPath -string "file://$HOME/if/" 2>/dev/null || true
 
-  # (B) Enable Finder right-click items:
-  #       - system "New Terminal at Folder" (Terminal.app service)
-  #       - our "Claude Code at Folder" quick action (runs via Automator)
-  #     Automator-sourced services use "(null)" as their bundle slot in the
-  #     pbs.plist key; NSMessage is the workflow's runner method.
-  #     Value schema must match what macOS itself writes when the user
-  #     ticks the checkbox manually: a single `presentation_modes` dict
-  #     with four flags. Older examples on the web use top-level
-  #     `enabled_context_menu` / `enabled_services_menu` keys — those are
-  #     legacy and silently ignored on Sonoma+.
-  local svc_enable='{ "presentation_modes" = { "ContextMenu" = 1; "FinderPreview" = 1; "ServicesMenu" = 1; "TouchBar" = 0; }; }'
-  defaults write pbs NSServicesStatus -dict-add \
-    "com.apple.Terminal - Open Terminal at Folder - openTerminal" "$svc_enable" \
-    2>/dev/null || true
-  defaults write pbs NSServicesStatus -dict-add \
-    "(null) - Claude Code at Folder - runWorkflowAsService" "$svc_enable" \
-    2>/dev/null || true
+  # (B) pbs NSServicesStatus writes intentionally deferred to after
+  #     `pbs -update` at the bottom of this function. Writing them here
+  #     first got them clobbered when pbs re-indexed the Services dir
+  #     and wrote its own default-disabled entries for freshly-registered
+  #     workflows. Last-writer-wins: we want to be last.
 
   # === cfprefsd flush ===
   # Force cfprefsd to flush its cache to disk before we touch the dock plist
@@ -585,12 +575,29 @@ IFTERMEXEC
   _dock_apps_insert_at_zero "$url_term"
   _dock_apps_insert_at_zero "$url_chrome"
 
-  # Apply changes.
+  # Apply Dock changes.
   # Don't killall Finder — relaunch steals focus from Terminal (Claude's
   # first-run "Trust this folder" prompt becomes unreachable). The new
   # prefs apply to the next Cmd-N / next Finder launch, which is fine.
   killall Dock 2>/dev/null || true
+
+  # === Services: register, then force-enable ===
+  # pbs -update indexes ~/Library/Services and writes default-disabled
+  # entries for anything new (our Claude Code at Folder workflow). Short
+  # sleep lets pbs finish before we overwrite those entries with our
+  # enabled version. Schema matches what macOS writes when the user
+  # manually ticks the checkbox (single presentation_modes dict with
+  # ContextMenu/FinderPreview/ServicesMenu/TouchBar flags). No further
+  # pbs -update after this — would clobber our writes again.
   /System/Library/CoreServices/pbs -update 2>/dev/null || true
+  sleep 0.5
+  local svc_enable='{ "presentation_modes" = { "ContextMenu" = 1; "FinderPreview" = 1; "ServicesMenu" = 1; "TouchBar" = 0; }; }'
+  defaults write pbs NSServicesStatus -dict-add \
+    "com.apple.Terminal - Open Terminal at Folder - openTerminal" "$svc_enable" \
+    2>/dev/null || true
+  defaults write pbs NSServicesStatus -dict-add \
+    "(null) - Claude Code at Folder - runWorkflowAsService" "$svc_enable" \
+    2>/dev/null || true
 }
 
 # Silent end-step: pre-configure Terminal.app so Option-Enter inserts a
@@ -770,6 +777,10 @@ echo ""
 # </dev/tty so `read` sees the real terminal, not the curl|bash pipe.
 printf "  • $(bold 'IMPORTANT:') Set Chrome as default browser -> then quit Chrome    ${C_GRAY}press enter when you're ready${C_RST}\n"
 read -r _ </dev/tty 2>/dev/null || true
+# Terminal echoes \r\n for the Enter keystroke, leaving a blank row
+# between the two bullets. Move cursor up one line so bullet 2 lands
+# directly under bullet 1 with no gap.
+printf '\033[1A'
 
 if [ "$OS" = "darwin" ] && [ -d "$HOME/Applications/Chrome with Claude Code.app" ]; then
   open "$HOME/Applications/Chrome with Claude Code.app" 2>/dev/null || true
