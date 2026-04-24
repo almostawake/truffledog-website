@@ -240,26 +240,35 @@ _install_claude() {
 
 # Chrome Stable + Chrome with Claude Code.app launcher.
 _install_chrome() {
-  # DEBUG: xtrace every command in this function + timestamps. Both xtrace
-  # output (via PS4) and `_log` lines go to stderr → INSTALL_LOG.
+  # DEBUG level 2: write step markers to files (so they're independent of
+  # stdout/stderr redirection), echo entry to /dev/tty (bypasses our redirect
+  # so user sees it immediately), and xtrace every command.
+  date +"entered at %H:%M:%S" > /tmp/chrome-step-00-entered
+  echo ">>> DEBUG: entered _install_chrome" > /dev/tty 2>/dev/null || true
+
   export PS4='+ [\t] chrome: '
   set -x
 
   _log() { echo "[$(date +%H:%M:%S)] chrome: $*"; }
 
+  date +"step-01 after set -x at %H:%M:%S" > /tmp/chrome-step-01-after-set-x
   _log "start _install_chrome"
+  date > /tmp/chrome-step-02-before-darwin-check
   [ "$OS" = "darwin" ] || { _log "not darwin, skipping"; return 0; }
+  date > /tmp/chrome-step-03-after-darwin-check
 
   # 1. Install Chrome.app (skip if already present anywhere)
   local chrome_app=""
   [ -d "/Applications/Google Chrome.app" ]      && chrome_app="/Applications/Google Chrome.app"
   [ -d "$HOME/Applications/Google Chrome.app" ] && chrome_app="$HOME/Applications/Google Chrome.app"
   _log "existing chrome_app = [$chrome_app]"
+  date > /tmp/chrome-step-04-after-existing-check
 
   if [ -z "$chrome_app" ]; then
     local dmg; dmg=$(mktemp -u).dmg
     local mountpoint
     _log "downloading Chrome DMG to $dmg (~200MB)…"
+    date > /tmp/chrome-step-05-before-curl
     # -f: fail on HTTP errors, -S: show errors even when silent, -L: follow
     # redirects, --progress-bar: show one-line progress (goes to stderr →
     # into our log, so each run grows the log by a few hundred lines — fine
@@ -489,12 +498,16 @@ run_install() {
   local i="$1" fn="$2"
   [ "${HAVE[$i]}" = "true" ] && return 0
   update_row "$i" "installing"
-  if "$fn" >> "$INSTALL_LOG" 2>&1; then
+  echo "[$(date +%H:%M:%S)] run_install: about to exec '$fn'" >> "$INSTALL_LOG"
+  local rc=0
+  "$fn" >> "$INSTALL_LOG" 2>&1 || rc=$?
+  echo "[$(date +%H:%M:%S)] run_install: '$fn' returned rc=$rc" >> "$INSTALL_LOG"
+  if [ "$rc" -eq 0 ]; then
     update_row "$i" "installed"
   else
     update_row "$i" "pending"
     echo ""
-    echo "install of ${ITEMS[$i]} failed — see $INSTALL_LOG" >&2
+    echo "install of ${ITEMS[$i]} failed (rc=$rc) — see $INSTALL_LOG" >&2
     exit 1
   fi
 }
