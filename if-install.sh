@@ -491,6 +491,17 @@ _configure_workspace() {
   <string>1.0</string>
   <key>LSMinimumSystemVersion</key>
   <string>10.15</string>
+  <!-- Without these two keys macOS probes the Mach-O header of the
+       executable, finds none (it's a shell script), and falls back to
+       offering Rosetta. Telling LaunchServices explicitly to run native
+       on arm64/x86_64 makes the Rosetta prompt go away. -->
+  <key>LSRequiresNativeExecution</key>
+  <true/>
+  <key>LSArchitecturePriority</key>
+  <array>
+    <string>arm64</string>
+    <string>x86_64</string>
+  </array>
 </dict>
 </plist>
 IFTERMPLIST
@@ -767,21 +778,28 @@ _write_zshrc         >> "$INSTALL_LOG" 2>&1
 echo ""
 echo "Next steps:"
 echo ""
-# Step 1 — wait for return, then launch Chrome. Its welcome popup has a
-# "Make Chrome the default browser" checkbox the user can action.
+# Step 1 — user sets Chrome as default, then quits Chrome. We block on
+# the Chrome process disappearing before moving on, so the two bullets
+# never fight for attention on screen at the same time.
 # </dev/tty so `read` sees the real terminal, not the curl|bash pipe.
-printf '  • Set Chrome with Claude Code as default    %spress return%s\n' \
-  "$C_GRAY" "$C_RST"
+echo "  • Set Chrome as default browser"
+printf '    Quit Chrome    %spress return to open Chrome%s\n' "$C_GRAY" "$C_RST"
 read -r _ </dev/tty 2>/dev/null || true
 
 if [ "$OS" = "darwin" ] && [ -d "$HOME/Applications/Chrome with Claude Code.app" ]; then
   open "$HOME/Applications/Chrome with Claude Code.app" 2>/dev/null || true
+  # First wait up to 10s for Chrome to appear in the process table
+  # (cold start takes a few seconds). Then block unbounded until the
+  # user quits it. By design: if they don't quit, we don't proceed.
+  for _ in $(seq 1 20); do
+    pgrep -U "$(id -u)" -f "$HOME/Applications/Google Chrome" >/dev/null 2>&1 && break
+    sleep 0.5
+  done
+  while pgrep -U "$(id -u)" -f "$HOME/Applications/Google Chrome" >/dev/null 2>&1; do
+    sleep 1
+  done
 fi
 
-# Step 2 — tell the user to quit Terminal and relaunch via the Dock. We
-# don't open a new window ourselves (the old exec-zsh trick broke pgrp;
-# the newer 'open -a Terminal.app' trick left two windows on screen and
-# confused people). IF Terminal on the Dock is now the one entry point.
 echo ""
 printf '  • Quit Terminal (Cmd-Q), then click %s on the left of the Dock\n' "$(bold 'IF Terminal')"
 echo ""
