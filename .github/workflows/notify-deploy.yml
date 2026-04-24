@@ -1,0 +1,20 @@
+name: notify-deploy
+on: page_build
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ntfy
+        run: |
+          if [ "${{ github.event.build.status }}" = "built" ]; then
+            curl -H "Title: truffledog-website deployed" \
+                 -H "Tags: white_check_mark" \
+                 -d "OK — ${{ github.event.build.commit }}" \
+                 https://ntfy.sh/tdd-deployed
+          else
+            curl -H "Title: truffledog-website deploy FAILED" \
+                 -H "Priority: high" \
+                 -H "Tags: x" \
+                 -d "${{ github.event.build.error.message }}" \
+                 https://ntfy.sh/tdd-deployed
+          fi
