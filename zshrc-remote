@@ -1,0 +1,122 @@
+#!/bin/zsh
+# CLAUDE EDIT NOTICE: When you change THIS file (zshrc-remote), bump
+# ZSHRC_VERSION below by 1. Shows in the user's prompt as [v46] etc. —
+# their signal that the zshrc push went live. Do NOT bump for edits to
+# if-install.sh, if-u.sh, if-check.sh, if-claude.md — those don't
+# affect the user's shell and the counter would drift meaninglessly.
+ZSHRC_VERSION="47"
+
+# Update Claude Code, set built in auto-updater off (not currently used)
+# brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
+# export DISABLE_AUTOUPDATER=1
+
+# Remove mac osx terminal keybindings that interfere with claude code CLI
+bindkey -r '^T'
+bindkey -r '^B'
+
+# ---- Environment ----
+# Homebrew PATH/MANPATH/INFOPATH.
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# JAVA_HOME via macOS java_home — only set if a JDK actually resolves.
+# /usr/libexec/java_home always exists but prints an error to stderr when no
+# Java is installed.
+if _jh="$(/usr/libexec/java_home 2>/dev/null)"; then
+  export JAVA_HOME="$_jh"
+fi
+unset _jh
+
+# Google Cloud SDK
+[ -f "$HOME/google-cloud-sdk/path.zsh.inc" ] && . "$HOME/google-cloud-sdk/path.zsh.inc"
+
+# Node Version Manager (non-interactive safe)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" > /dev/null 2>&1
+
+# ---- PATH setup ----
+# macOS /etc/zprofile runs path_helper before zshrc, so PATH ordering is
+# asserted here (after path_helper) rather than earlier where prepends would
+# be clobbered. Helpers guard on existence so the same file is portable
+# across machines without breaking PATH.
+prepend_path() { [[ -d "$1" ]] && export PATH="$1:$PATH"; }
+append_path()  { [[ -d "$1" ]] && export PATH="$PATH:$1"; }
+
+append_path "$HOME/bin"
+append_path "$HOME/.local/bin"
+[[ -n "$JAVA_HOME" ]] && prepend_path "$JAVA_HOME/bin"
+prepend_path "/Library/Developer/CommandLineTools/usr/bin"
+prepend_path "/opt/homebrew/opt/ruby/bin"
+
+export CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL=1
+
+# Load pyenv automatically (only if installed)
+if [[ -d "$HOME/.pyenv/shims" ]]; then
+  export PYENV_ROOT="$HOME/.pyenv"
+  prepend_path "$PYENV_ROOT/shims"
+  eval "$(pyenv init - zsh)"
+fi
+
+# Simple prompt with version number
+export PS1="%F{green}[v${ZSHRC_VERSION}]%f %F{cyan}%~%f > "
+
+# Aliases - General
+alias ll="ls -al"
+alias cc="claude --dangerously-skip-permissions"
+alias ccc="claude --dangerously-skip-permissions --continue"
+alias ccr="claude --dangerously-skip-permissions --resume"
+
+# Aliases & functions - Firebase Emulators
+alias ca="find . -name \"node_modules\" -type d -prune -exec rm -rf '{}' + && find . -name \"__pycache__\" -type d -prune -exec rm -rf '{}' + && find . -name \"venv\" -type d -prune -exec rm -rf '{}' + && find . -name \"build\" -type d -prune -exec rm -rf '{}' + && find . -name \"dist\" -type d -prune -exec rm -rf '{}' + && find . -name \"coverage\" -type d -prune -exec rm -rf '{}' + && find . -name \".vite\" -type d -prune -exec rm -rf '{}' + && find . -name \".eslintcache\" -type f -delete && find . -name \".dccache\" -type d -prune -exec rm -rf '{}' + && find . -name \"package-lock.json\" -type f -delete"
+alias ia="npm run install:all"
+alias ba="npm run build:all"
+wa() { npm run build:common:watch & npm run build:functions:watch & wait; }
+alias se="npm run start:emulators"
+ra() {
+  local R="\033[0m"
+  local B="\033[1;36m"
+  echo ""
+  echo "${B}==============================================${R}"
+  echo "${B}  [RA] STEP 1/2: gcloud application-default login${R}"
+  echo "${B}==============================================${R}"
+  echo ""
+  gcloud auth application-default login
+  echo ""
+  echo "${B}==============================================${R}"
+  echo "${B}  [RA] STEP 1/2 DONE → STEP 2/2: firebase login --reauth${R}"
+  echo "${B}==============================================${R}"
+  echo ""
+  npx firebase login --reauth
+  echo ""
+  echo "${B}==============================================${R}"
+  echo "${B}  [RA] STEP 2/2 DONE. Auth complete.${R}"
+  echo "${B}==============================================${R}"
+  echo ""
+}
+alias sc="npm run start:client"
+alias bs="curl -X POST http://127.0.0.1:5001/bean-development/australia-southeast1/admin/bootstrap"
+alias sp="ports=\$(lsof -nP -i :9099 -i :5001 -i :8080 -i :5002 -i :9199 -i :8085 2>/dev/null | awk 'NR>1 {print \$9}' | sed 's/.*://' | sed 's/->.*//' | sort -n | uniq | xargs); [ -n \"\$ports\" ] && echo \"Ports taken: \$ports\" || echo \"All ports free\""
+alias kp="lsof -ti :9099 -ti :5001 -ti :8080 -ti :5002 -ti :9199 -ti :8085 -ti :3000 -ti :4400 | xargs kill"
+alias 'kp!'="kill -9 \$(lsof -ti :9099 -ti :5001 -ti :8080 -ti :5002 -ti :9199 -ti :8085 -ti :3000 -ti :4400)"
+
+# List aliases/commands
+c() {
+  echo "Shortcuts:"
+  echo ""
+  echo "  ca    clear all cache directories and files including package-lock.json"
+  echo "  ia    install:all"
+  echo "  ba    build:all"
+  echo "  wa    watch functions/common (concurrently)"
+  echo "  se    start emulators"
+  echo "  ra    reauth: gcloud auth + firebase login"
+  echo "  sc    start client"
+  echo "  bs    run bootstrap"
+  echo "  sp    show emulator ports in use"
+  echo "  kp    graceful kill emulator ports (SIGTERM)"
+  echo "  kp!   force kill emulator ports (SIGKILL)"
+  echo "  cc    claude --dangerously-skip-permissions"
+  echo "  ccc   claude --dangerously-skip-permissions --continue"
+  echo "  ccr   claude --dangerously-skip-permissions --resume"
+}
+
+# Auto-select node from .nvmrc if present
+[ -f .nvmrc ] && nvm use --silent
