@@ -4,7 +4,7 @@
 # their signal that the zshrc push went live. Do NOT bump for edits to
 # if-install.sh, if-u.sh, if-check.sh, if-claude.md — those don't
 # affect the user's shell and the counter would drift meaninglessly.
-ZSHRC_VERSION="48"
+ZSHRC_VERSION="49"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
@@ -49,6 +49,10 @@ prepend_path "/opt/homebrew/opt/ruby/bin"
 
 export CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL=1
 
+# Where new projects from `setup-project` land. Defaults to ~/Projects in
+# the if install zshrc block; this machine keeps everything under ~/_code.
+export PROJECT_DIR="$HOME/_code"
+
 # Load pyenv automatically (only if installed)
 if [[ -d "$HOME/.pyenv/shims" ]]; then
   export PYENV_ROOT="$HOME/.pyenv"
@@ -64,7 +68,7 @@ alias ll="ls -al"
 alias cc="claude --dangerously-skip-permissions"
 alias ccc="claude --dangerously-skip-permissions --continue"
 alias ccr="claude --dangerously-skip-permissions --resume"
-[ -f "$HOME/.if/staging/scripts/b" ] && alias create-project="bash $HOME/.if/staging/scripts/b"
+alias setup-project='bash $HOME/.if/staging/scripts/setup-project-bootstrap'
 
 # Aliases & functions - Firebase Emulators
 alias ca="find . -name \"node_modules\" -type d -prune -exec rm -rf '{}' + && find . -name \"__pycache__\" -type d -prune -exec rm -rf '{}' + && find . -name \"venv\" -type d -prune -exec rm -rf '{}' + && find . -name \"build\" -type d -prune -exec rm -rf '{}' + && find . -name \"dist\" -type d -prune -exec rm -rf '{}' + && find . -name \"coverage\" -type d -prune -exec rm -rf '{}' + && find . -name \".vite\" -type d -prune -exec rm -rf '{}' + && find . -name \".eslintcache\" -type f -delete && find . -name \".dccache\" -type d -prune -exec rm -rf '{}' + && find . -name \"package-lock.json\" -type f -delete"
