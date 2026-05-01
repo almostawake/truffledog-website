@@ -4,7 +4,7 @@
 # their signal that the zshrc push went live. Do NOT bump for edits to
 # if-install.sh, if-u.sh, if-check.sh, if-claude.md — those don't
 # affect the user's shell and the counter would drift meaninglessly.
-ZSHRC_VERSION="49"
+ZSHRC_VERSION="50"
 
 # Update Claude Code, set built in auto-updater off (not currently used)
 # brew upgrade --cask claude-code 2>&1 | grep -v "Warning:"
@@ -43,7 +43,11 @@ append_path()  { [[ -d "$1" ]] && export PATH="$PATH:$1"; }
 
 append_path "$HOME/bin"
 append_path "$HOME/.local/bin"
-[[ -n "$JAVA_HOME" ]] && prepend_path "$JAVA_HOME/bin"
+if [[ -n "$JAVA_HOME" ]]; then
+  prepend_path "$JAVA_HOME/bin"
+else
+  prepend_path "$HOME/.if/java/Contents/Home/bin"
+fi
 prepend_path "/Library/Developer/CommandLineTools/usr/bin"
 prepend_path "/opt/homebrew/opt/ruby/bin"
 
